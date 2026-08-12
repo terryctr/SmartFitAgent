@@ -1,0 +1,19 @@
+# Build and runtime output
+target/
+build/
+dist/
+logs/
+
+# Local IDE and OS files
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+application-local.yml
+application-local.properties
