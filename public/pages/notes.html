@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>饮食日记 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="notes">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>📝 饮食日记</h1><p class="subtitle">记录每日饮食心得与摄入情况</p></div>
+    <button class="btn-primary" onclick="saveNote()">保存记录</button>
+  </div>
+
+  <div class="grid cols2" style="align-items:start">
+    <div class="card">
+      <div class="card-header"><span class="card-title">新增记录</span></div>
+      <div class="form-group" style="margin-bottom:10px"><label>标题</label><input id="noteTitle" placeholder="今日饮食总结"></div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>类型</label>
+          <select id="noteSubject">
+            <option>饮食摄入</option><option>训练前餐</option><option>训练后餐</option>
+            <option>补剂与饮水</option><option>外出饮食</option><option>加餐</option>
+          </select>
+        </div>
+        <div class="form-group"><label>标签</label><input id="noteTags" placeholder="减脂,蛋白质"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>内容</label>
+        <textarea id="noteContent" style="min-height:140px" placeholder="记录热量、蛋白质、碳水、脂肪摄入情况和执行体验...&#10;&#10;例：&#10;早餐：鸡蛋2个+燕麦50g，约350kcal&#10;午餐：鸡胸肉150g+米饭100g+蔬菜，约480kcal&#10;晚餐：三文鱼200g+沙拉，约400kcal&#10;总计：约1230kcal，蛋白质约120g"></textarea>
+      </div>
+      <div id="saveMsg" style="display:none;margin-bottom:8px;font-size:12px;color:var(--green)"></div>
+      <button class="btn-primary" onclick="saveNote()" style="width:100%">保存记录</button>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">AI 饮食摄入建议</span></div>
+        <div style="font-size:13px;line-height:1.7;color:var(--muted)" id="nutritionTips">
+          <div style="margin-bottom:10px"><strong style="color:var(--accent)">减脂期每日参考</strong></div>
+          <div>• 热量缺口控制在 300-500 kcal</div>
+          <div>• 蛋白质：体重(kg) × 1.8-2.2g</div>
+          <div>• 碳水：体重(kg) × 2-3g（训练日提高）</div>
+          <div>• 脂肪：总热量的 20-25%</div>
+          <hr class="divider">
+          <div style="margin-bottom:6px"><strong style="color:var(--blue)">训练前餐（1-2h前）</strong></div>
+          <div style="font-size:12px">• 中等碳水 + 适量蛋白质，低脂肪</div>
+          <div style="font-size:12px">• 例：香蕉+鸡胸肉，燕麦+希腊酸奶</div>
+          <hr class="divider">
+          <div style="margin-bottom:6px"><strong style="color:var(--green)">训练后餐（30-90min内）</strong></div>
+          <div style="font-size:12px">• 快碳 + 高蛋白，促进糖原恢复和肌肉合成</div>
+          <div style="font-size:12px">• 例：米饭+鸡蛋，蛋白粉+香蕉</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">记录历史</span><button class="btn-secondary btn-sm" onclick="loadNotes()">刷新</button></div>
+        <div id="notesList" style="font-size:13px;color:var(--muted)">加载中...</div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+async function loadNotes(){
+  try{
+    const notes=await fetch('/api/notes').then(r=>r.json());
+    const list=document.getElementById('notesList');
+    if(!notes.length){list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">暂无记录，开始记录今天的饮食吧！</div>';return;}
+    list.innerHTML=notes.map(n=>`
+      <div style="padding:10px;background:var(--surface);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--blue)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <strong style="font-size:13px">${n.subject||n.type} · ${n.title}</strong>
+          ${n.tags?`<span class="badge badge-blue">${n.tags}</span>`:''}
+        </div>
+        <div style="font-size:12px;color:var(--muted);white-space:pre-line">${n.content||''}</div>
+      </div>`).join('');
+  }catch(e){document.getElementById('notesList').innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">暂无记录</div>';}
+}
+async function saveNote(){
+  const body={title:document.getElementById('noteTitle').value||'饮食记录',subject:document.getElementById('noteSubject').value,tags:document.getElementById('noteTags').value,content:document.getElementById('noteContent').value};
+  if(!body.content.trim()){alert('请填写记录内容');return;}
+  try{
+    await fetch('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const msg=document.getElementById('saveMsg');msg.textContent='✅ 记录已保存！';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);
+    document.getElementById('noteContent').value='';document.getElementById('noteTitle').value='';
+    loadNotes();
+  }catch(e){alert('保存失败: '+e.message);}
+}
+loadNotes();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

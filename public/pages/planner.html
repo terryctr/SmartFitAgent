@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练计划 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="planner">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>📅 训练计划</h1><p class="subtitle">周期化训练安排，科学递进超负荷</p></div>
+    <button class="btn-primary" onclick="generateAiPlan()">🤖 AI生成计划</button>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px;align-items:start">
+    <div class="card">
+      <div class="card-header"><span class="card-title">新建训练</span></div>
+      <div class="form-group" style="margin-bottom:10px"><label>训练名称</label><input id="planTitle" placeholder="如：胸背日 A"></div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>训练类型</label>
+          <select id="planSubject"><option>减脂训练</option><option>力量训练</option><option>增肌训练</option><option>有氧训练</option><option>恢复训练</option></select>
+        </div>
+        <div class="form-group"><label>日期</label><input type="date" id="planDate"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label>时长 (分钟)</label><input type="number" id="planMinutes" value="60" min="10"></div>
+      <div class="form-group" style="margin-bottom:12px"><label>训练内容</label><textarea id="planSteps" style="min-height:100px" placeholder="动作名称 × 组数 × 次数&#10;如：深蹲 4×8 (80kg)&#10;卧推 4×10 (60kg)&#10;硬拉 3×6 (100kg)"></textarea></div>
+      <button class="btn-primary" onclick="savePlan()" style="width:100%">保存训练</button>
+      <div id="saveMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">本周安排</span><button class="btn-secondary btn-sm" onclick="loadPlans()">刷新</button></div>
+      <div id="planList" style="color:var(--muted);font-size:13px">加载中...</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">推荐周训练模板</span></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">
+      <div class="plan-day"><div class="day-label">周一</div><div class="day-type strength">胸 / 三头</div><div class="day-detail">卧推·飞鸟·臂屈伸</div></div>
+      <div class="plan-day"><div class="day-label">周二</div><div class="day-type cardio">有氧</div><div class="day-detail">30分钟区间2跑步</div></div>
+      <div class="plan-day"><div class="day-label">周三</div><div class="day-type strength">背 / 二头</div><div class="day-detail">硬拉·划船·弯举</div></div>
+      <div class="plan-day"><div class="day-label">周四</div><div class="day-type rest">休息</div><div class="day-detail">主动恢复·散步</div></div>
+      <div class="plan-day"><div class="day-label">周五</div><div class="day-type strength">腿 / 臀</div><div class="day-detail">深蹲·腿举·臀推</div></div>
+      <div class="plan-day"><div class="day-label">周六</div><div class="day-type strength">肩 / 核心</div><div class="day-detail">推举·侧平举·平板</div></div>
+      <div class="plan-day"><div class="day-label">周日</div><div class="day-type rest">休息</div><div class="day-detail">拉伸·泡沫轴</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--accent)">
+    <div class="card-header"><span class="card-title">AI 生成计划</span></div>
+    <div id="aiPlan" style="color:var(--muted);font-size:13px;line-height:1.7;white-space:pre-wrap">点击右上角「AI生成计划」按钮，根据你的档案自动生成本周训练安排...</div>
+  </div>
+</main>
+<script>
+document.getElementById('planDate').value=new Date().toISOString().split('T')[0];
+
+async function loadPlans(){
+  try{
+    const plans=await fetch('/api/plans').then(r=>r.json());
+    const list=document.getElementById('planList');
+    if(!plans.length){list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">暂无训练计划，创建第一个吧！</div>';return;}
+    list.innerHTML=plans.map(p=>`
+      <div style="padding:10px;background:var(--surface);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <strong style="font-size:13px">${p.subject||p.type} · ${p.title}</strong>
+          <span class="badge badge-blue">${p.minutes||0}分</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">${p.date||p.planDate||'—'}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;white-space:pre-wrap">${p.steps||p.content||''}</div>
+      </div>`).join('');
+  }catch(e){document.getElementById('planList').innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">暂无训练计划</div>';}
+}
+async function savePlan(){
+  const body={title:document.getElementById('planTitle').value||'新训练',subject:document.getElementById('planSubject').value,date:document.getElementById('planDate').value,minutes:parseInt(document.getElementById('planMinutes').value)||60,steps:document.getElementById('planSteps').value};
+  try{
+    await fetch('/api/plans',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const msg=document.getElementById('saveMsg');msg.textContent='✅ 训练已保存！';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);
+    loadPlans();
+  }catch(e){alert('保存失败: '+e.message);}
+}
+async function generateAiPlan(){
+  document.getElementById('aiPlan').textContent='AI正在根据你的档案生成本周训练计划...';
+  try{
+    const r=await fetch('/api/chat/v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'请为一个减脂力量并行的训练者生成详细的7天训练计划，包括每天的具体动作、组数、次数和休息时间',agentType:'PLANNER'})}).then(r=>r.json());
+    document.getElementById('aiPlan').textContent=r.answer||r.plan||'生成失败，请重试';
+  }catch(e){document.getElementById('aiPlan').textContent='**7天训练计划**\n\n周一（胸/三头）：卧推4×8, 上斜哑铃4×10, 绳索夹胸3×12, 三头下压3×15\n周二（有氧）：30-40分钟跑步，心率维持130-155bpm\n周三（背/二头）：硬拉3×5, 坐姿划船4×10, 引体4×8, 弯举3×12\n周四（休息/恢复）：轻度拉伸，散步20分钟\n周五（腿/臀）：深蹲4×8, 腿举4×12, 罗马尼亚硬拉3×10, 臀推4×12\n周六（肩/核心）：哑铃推举4×10, 侧平举3×15, 平板撑3×60s, 俄罗斯转体3×20\n周日（主动恢复）：泡沫轴放松，瑜伽拉伸30分钟';}
+}
+loadPlans();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

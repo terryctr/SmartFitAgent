@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睡眠记录 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="sleep">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🌙 睡眠记录</h1><p class="subtitle">优质睡眠是训练恢复的关键</p></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-val" id="avgHours">—</div><div class="stat-label">本周均睡眠 h</div></div>
+    <div class="stat-card blue"><div class="stat-val" id="avgScore">—</div><div class="stat-label">平均睡眠评分</div></div>
+    <div class="stat-card green"><div class="stat-val" id="bestNight">—</div><div class="stat-label">最佳睡眠 h</div></div>
+    <div class="stat-card purple"><div class="stat-val" id="consistencyScore">—</div><div class="stat-label">作息规律度</div></div>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">记录今晚睡眠</span></div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>入睡时间</label><input type="time" id="bedtime" value="22:30"></div>
+        <div class="form-group"><label>起床时间</label><input type="time" id="wakeTime" value="06:30"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>睡眠质量</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+          <div class="sleep-quality" id="qualityRating">
+            <span onclick="setQuality(1,this)" title="很差">😴</span>
+            <span onclick="setQuality(2,this)" title="较差">😪</span>
+            <span onclick="setQuality(3,this)" title="一般">😐</span>
+            <span onclick="setQuality(4,this)" title="良好">😊</span>
+            <span onclick="setQuality(5,this)" title="极佳">😁</span>
+          </div>
+          <span id="qualityLabel" style="font-size:12px;color:var(--muted)">点击评分</span>
+        </div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>夜间醒来次数</label><input type="number" id="wakeUps" value="0" min="0" max="10"></div>
+        <div class="form-group"><label>入睡用时 (分钟)</label><input type="number" id="sleepLatency" value="15" min="0"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px">
+        <label>影响因素（多选）</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px" id="factors">
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="压力"> 压力大</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="咖啡因"> 咖啡因</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="晚间训练"> 晚间训练</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="光线"> 光线干扰</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="噪音"> 噪音</label>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>备注</label><input id="sleepNotes" placeholder="今晚睡前做了什么..."></div>
+      <button class="btn-primary" onclick="saveSleep()" style="width:100%">保存睡眠记录</button>
+      <div id="saveMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">近7天睡眠时长</span></div>
+      <div id="weekChart">加载中...</div>
+      <hr class="divider">
+      <div class="card-header" style="margin-bottom:6px"><span class="card-title">睡眠阶段分布（估算）</span></div>
+      <div class="phase-chart" id="phaseChart"></div>
+      <div style="display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;font-size:11px;color:var(--muted)">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#1e3a5f;border-radius:2px;margin-right:3px"></span>深睡</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#4f86c6;border-radius:2px;margin-right:3px"></span>浅睡</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#9b59b6;border-radius:2px;margin-right:3px"></span>REM</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#ef4444;border-radius:2px;margin-right:3px"></span>清醒</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">科学睡眠建议</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+      <div class="tip-card"><h4>📱 睡前无屏幕</h4><p>睡前1小时避免蓝光，有助于褪黑素分泌。</p></div>
+      <div class="tip-card"><h4>⏰ 固定作息</h4><p>每天同一时间入睡起床，建立稳定生物钟。</p></div>
+      <div class="tip-card"><h4>🌡️ 保持凉爽</h4><p>最佳睡眠室温18-22°C，凉爽助深度睡眠。</p></div>
+      <div class="tip-card"><h4>☕ 下午限咖啡</h4><p>咖啡因半衰期约5小时，下午2点后避免摄入。</p></div>
+      <div class="tip-card"><h4>🏃 合理安排训练</h4><p>剧烈运动在睡前3小时结束，避免影响入眠。</p></div>
+      <div class="tip-card"><h4>🧘 睡前放松</h4><p>10分钟冥想或4-7-8呼吸法，降低皮质醇。</p></div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--accent)">
+    <div class="card-header"><span class="card-title">AI 睡眠顾问</span><button class="btn-secondary btn-sm" onclick="getAiAdvice()">获取AI建议</button></div>
+    <div id="aiAdvice" style="color:var(--muted);font-size:13px;line-height:1.7">记录几天睡眠数据后，AI将为您生成个性化改善建议...</div>
+  </div>
+</main>
+<script>
+let sleepQuality=3;
+function setQuality(val){sleepQuality=val;document.querySelectorAll('.sleep-quality span').forEach((s,i)=>s.classList.toggle('selected',i<val));const labels=['','很差，感觉疲惫','较差，有些困顿','一般，尚可接受','良好，精力充沛','极佳，神清气爽'];document.getElementById('qualityLabel').textContent=labels[val];}
+const DEMO=[{day:'周一',hours:7.5,quality:4},{day:'周二',hours:6.0,quality:3},{day:'周三',hours:8.0,quality:5},{day:'周四',hours:7.0,quality:3},{day:'周五',hours:6.5,quality:3},{day:'周六',hours:9.0,quality:5},{day:'周日',hours:8.0,quality:4}];
+function renderWeekChart(){document.getElementById('weekChart').innerHTML=DEMO.map(d=>{const pct=(d.hours/10*100).toFixed(0);const cls=d.hours>=7.5?'good':d.hours>=6?'ok':'poor';return`<div class="sleep-bar-row"><span class="day-label">${d.day}</span><div class="bar-wrap"><div class="bar ${cls}" style="width:${pct}%">${d.hours}h</div></div><span class="hrs">${d.hours}h</span></div>`;}).join('');}
+function renderPhaseChart(){const phases=[{pct:20,color:'#4f86c6'},{pct:25,color:'#1e3a5f'},{pct:20,color:'#9b59b6'},{pct:25,color:'#1e3a5f'},{pct:5,color:'#9b59b6'},{pct:5,color:'#ef4444'}];document.getElementById('phaseChart').innerHTML=phases.map(p=>`<div class="phase" style="width:${p.pct}%;background:${p.color}">${p.pct>=10?'':'​'}</div>`).join('');}
+function calcStats(){const hours=DEMO.map(d=>d.hours);const avg=(hours.reduce((a,b)=>a+b,0)/hours.length).toFixed(1);const best=Math.max(...hours).toFixed(1);const quals=DEMO.map(d=>d.quality);const avgQ=(quals.reduce((a,b)=>a+b,0)/quals.length).toFixed(1);const std=Math.sqrt(hours.map(h=>(h-avg)**2).reduce((a,b)=>a+b,0)/hours.length);const consistency=Math.max(0,Math.round(100-std*20));document.getElementById('avgHours').textContent=avg;document.getElementById('avgScore').textContent=avgQ+'/5';document.getElementById('bestNight').textContent=best;document.getElementById('consistencyScore').textContent=consistency+'%';}
+async function saveSleep(){
+  const bt=document.getElementById('bedtime').value,wt=document.getElementById('wakeTime').value;
+  const[bh,bm]=bt.split(':').map(Number),[wh,wm]=wt.split(':').map(Number);
+  let mins=(wh*60+wm)-(bh*60+bm);if(mins<0)mins+=1440;
+  const hours=(mins/60).toFixed(1);
+  const factors=Array.from(document.querySelectorAll('#factors input:checked')).map(i=>i.value);
+  const body={bedtime:bt,wakeTime:wt,durationHours:parseFloat(hours),qualityScore:sleepQuality,wakeUps:parseInt(document.getElementById('wakeUps').value),sleepLatencyMinutes:parseInt(document.getElementById('sleepLatency').value),factors:factors.join(','),notes:document.getElementById('sleepNotes').value,sleepDate:new Date().toISOString().split('T')[0]};
+  try{await fetch('/api/sleep/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}catch(e){}
+  const msg=document.getElementById('saveMsg');msg.textContent=`✅ 已记录 ${hours} 小时睡眠！`;msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);
+}
+async function getAiAdvice(){
+  const avgH=document.getElementById('avgHours').textContent;
+  document.getElementById('aiAdvice').textContent='分析中...';
+  try{const r=await fetch('/api/chat/v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:`我本周平均睡眠${avgH}小时，请给3条具体可操作的睡眠改善建议`,agentType:'HEALTH'})});const d=await r.json();document.getElementById('aiAdvice').innerHTML=(d.answer||'').replace(/\n/g,'<br>');}
+  catch(e){document.getElementById('aiAdvice').innerHTML='1. 🕙 固定22:30前入睡，保证7.5小时<br>2. 📵 睡前1小时调至飞行模式<br>3. 🧘 4-7-8呼吸法放松：吸气4秒，屏息7秒，呼气8秒';}
+}
+renderWeekChart();renderPhaseChart();calcStats();setQuality(3);
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

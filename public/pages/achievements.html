@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>成就系统 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.ach-card{background:var(--card);border-radius:12px;padding:16px;text-align:center;border:2px solid var(--border);position:relative;transition:all .3s}
+.ach-card.earned{border-color:var(--accent);background:linear-gradient(135deg,rgba(249,115,22,.05),rgba(16,185,129,.05))}
+.ach-card.locked{opacity:.45;filter:grayscale(.7)}
+.ach-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.ach-icon{font-size:2.2rem;margin-bottom:6px}
+.ach-title{font-weight:700;font-size:13px;margin-bottom:4px}
+.ach-desc{font-size:11px;color:var(--muted);line-height:1.4}
+.ach-pts{margin-top:8px;display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.ach-card.earned .ach-pts{background:rgba(251,191,36,.15);color:#f59e0b}
+.ach-card.locked .ach-pts{background:var(--surface);color:var(--muted)}
+.corner-mark{position:absolute;top:8px;right:8px;font-size:14px}
+</style>
+</head>
+<body data-page="achievements">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🎖️ 成就系统</h1><p class="subtitle">坚持训练，解锁徽章，成为健身大师</p></div>
+    <button class="btn-primary" onclick="checkNewAchievements()">🔍 检查新成就</button>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:18px;font-weight:700">Lv.<span id="userLevel">1</span> <span id="levelName">健身新星</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">距升级还需 <span id="ptsToNext">500</span> 积分</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:2.5rem;font-weight:800;color:#f59e0b" id="totalPoints">0</div>
+        <div style="font-size:11px;color:var(--muted)">总积分</div>
+      </div>
+    </div>
+    <div style="background:var(--surface);height:10px;border-radius:5px;overflow:hidden;margin-top:12px">
+      <div id="levelBar" style="height:100%;background:linear-gradient(90deg,var(--accent),#10b981);border-radius:5px;width:0%;transition:width .8s"></div>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom:20px">
+    <div class="stat-card"><div class="stat-val" id="earnedCount">0</div><div class="stat-label">已获成就</div></div>
+    <div class="stat-card blue"><div class="stat-val" id="totalAvail">—</div><div class="stat-label">全部成就</div></div>
+    <div class="stat-card green"><div class="stat-val" id="completePct">0%</div><div class="stat-label">完成度</div></div>
+    <div class="stat-card purple"><div class="stat-val" id="rareCount">0</div><div class="stat-label">稀有徽章</div></div>
+  </div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <button class="btn-secondary btn-sm active-pill" onclick="filterAch('all',this)">全部</button>
+    <button class="btn-secondary btn-sm" onclick="filterAch('STREAK',this)">🔥 打卡</button>
+    <button class="btn-secondary btn-sm" onclick="filterAch('VOLUME',this)">📈 训练量</button>
+    <button class="btn-secondary btn-sm" onclick="filterAch('NUTRITION',this)">🥗 营养</button>
+    <button class="btn-secondary btn-sm" onclick="filterAch('GOAL',this)">🎯 目标</button>
+    <button class="btn-secondary btn-sm" onclick="filterAch('CHALLENGE',this)">🏆 挑战</button>
+    <button class="btn-secondary btn-sm" onclick="filterAch('SPECIAL',this)">✨ 特殊</button>
+  </div>
+
+  <div class="ach-grid" id="achGrid">
+    <div style="color:var(--muted);text-align:center;padding:40px;grid-column:1/-1">加载成就中...</div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><span class="card-title">🕐 最近获得的成就</span></div>
+    <div id="recentAch"><div style="color:var(--muted);text-align:center;padding:16px;font-size:13px">开始训练后，最近获得的成就将显示在这里</div></div>
+  </div>
+</main>
+<script>
+let allDefs=[],earnedSet=new Set();
+const BADGE_ICONS={STREAK:'🔥',VOLUME:'💪',NUTRITION:'🥗',GOAL:'🎯',CHALLENGE:'🏆',SPECIAL:'✨'};
+const LEVEL_NAMES=['健身新星','初级战士','进阶选手','专业运动员','健身达人','精英训练者'];
+async function loadAll(){
+  try{
+    const [defsR,earnedR]=await Promise.all([fetch('/api/achievements/all'),fetch('/api/achievements?userId=u1001')]);
+    allDefs=await defsR.json();const earned=await earnedR.json();
+    const items=earned.achievements||[];earnedSet=new Set(items.map(a=>a.title));
+    updateStats(items,earned.totalPoints||0);renderGrid(allDefs,items);renderRecent(items.slice(0,5));
+  }catch(e){renderDemoAchievements();}
+}
+function renderDemoAchievements(){
+  allDefs=[
+    {id:'profile_set',title:'建立档案',description:'完善个人健身档案',badge:'GOAL',points:30},
+    {id:'streak_3',title:'三日不辍',description:'连续3天记录训练',badge:'STREAK',points:30},
+    {id:'streak_7',title:'一周坚持',description:'连续7天记录训练',badge:'STREAK',points:70},
+    {id:'streak_30',title:'月度冠军',description:'连续30天记录训练',badge:'STREAK',points:300},
+    {id:'log_5',title:'初露锋芒',description:'完成5次训练记录',badge:'VOLUME',points:50},
+    {id:'log_20',title:'持之以恒',description:'完成20次训练记录',badge:'VOLUME',points:100},
+    {id:'log_50',title:'训练达人',description:'完成50次训练记录',badge:'VOLUME',points:200},
+    {id:'nutrition_7',title:'饮食自律',description:'连续7天记录饮食',badge:'NUTRITION',points:80},
+    {id:'bmi_normal',title:'健康体重',description:'BMI进入正常范围',badge:'GOAL',points:200},
+    {id:'first_plan',title:'计划先行',description:'创建第一个训练计划',badge:'GOAL',points:50},
+    {id:'first_challenge',title:'勇于挑战',description:'参加第一个挑战',badge:'CHALLENGE',points:50},
+    {id:'challenge_done',title:'挑战完成',description:'成功完成一个挑战',badge:'CHALLENGE',points:100},
+    {id:'perfect_week',title:'完美一周',description:'一周5次训练且7天记录饮食',badge:'SPECIAL',points:400},
+    {id:'early_bird',title:'晨练达人',description:'连续5天早上8点前完成训练',badge:'SPECIAL',points:150},
+  ];
+  const earned=[{title:'建立档案',badge:'GOAL',points:30,earnedAt:'2026-06-01'}];
+  earnedSet=new Set(earned.map(a=>a.title));updateStats(earned,30);renderGrid(allDefs,earned);renderRecent(earned);
+}
+function updateStats(earned,pts){
+  document.getElementById('earnedCount').textContent=earned.length;
+  document.getElementById('totalAvail').textContent=allDefs.length||'—';
+  document.getElementById('completePct').textContent=(allDefs.length?Math.round(earned.length/allDefs.length*100):0)+'%';
+  document.getElementById('rareCount').textContent=earned.filter(a=>(a.points||0)>=200).length;
+  document.getElementById('totalPoints').textContent=pts;
+  const lvl=Math.min(5,Math.floor(pts/500));const pct=((pts%500)/500)*100;
+  document.getElementById('userLevel').textContent=lvl+1;
+  document.getElementById('levelName').textContent=LEVEL_NAMES[lvl]||'传奇';
+  document.getElementById('ptsToNext').textContent=500-(pts%500);
+  document.getElementById('levelBar').style.width=pct+'%';
+}
+function renderGrid(defs,earned){
+  document.getElementById('achGrid').innerHTML=defs.map(d=>{
+    const isEarned=earnedSet.has(d.title);const e=earned.find(a=>a.title===d.title);
+    const icon=BADGE_ICONS[d.badge||d.badge_type]||'🏅';
+    return`<div class="ach-card ${isEarned?'earned':'locked'}" data-badge="${d.badge||d.badge_type||''}">
+      <div class="corner-mark">${isEarned?'✅':'🔒'}</div>
+      <div class="ach-icon">${icon}</div>
+      <div class="ach-title">${d.title}</div>
+      <div class="ach-desc">${d.description}</div>
+      <div class="ach-pts">⭐ ${d.points||0} 积分</div>
+      ${isEarned&&e?`<div style="font-size:10px;color:var(--muted);margin-top:4px">获得于 ${(e.earnedAt||e.earned_at||'').substring(0,10)}</div>`:''}
+    </div>`;}).join('');
+}
+function filterAch(type,btn){
+  document.querySelectorAll('[onclick^="filterAch"]').forEach(b=>b.classList.remove('active-pill'));
+  btn.classList.add('active-pill');
+  document.querySelectorAll('.ach-card').forEach(c=>{c.style.display=(type==='all'||c.dataset.badge===type)?'block':'none';});
+}
+function renderRecent(items){
+  if(!items.length)return;
+  document.getElementById('recentAch').innerHTML=items.map(a=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:1.4rem">${BADGE_ICONS[a.badge||a.badge_type]||'🏅'}</div>
+      <div style="flex:1"><div style="font-weight:600;font-size:13px">${a.title}</div><div style="font-size:11px;color:var(--muted)">${a.description||''}</div></div>
+      <div style="text-align:right"><div style="color:#f59e0b;font-weight:700;font-size:13px">+${a.points||a.points_earned||0}</div><div style="font-size:11px;color:var(--muted)">${(a.earnedAt||a.earned_at||'').substring(0,10)}</div></div>
+    </div>`).join('');
+}
+async function checkNewAchievements(){
+  const btn=event.target;btn.textContent='检查中...';btn.disabled=true;
+  try{
+    const r=await fetch('/api/achievements/check?userId=u1001&totalWorkouts=5&streakDays=3&hasProfile=true',{method:'POST'}).then(r=>r.json());
+    if(r.count>0){alert(`🎉 新获得 ${r.count} 个成就：${r.newAchievements.join('、')}`);loadAll();}
+    else{alert('暂无新成就，继续加油！💪');}
+  }catch(e){alert('继续记录训练以解锁成就 💪');}
+  btn.textContent='🔍 检查新成就';btn.disabled=false;
+}
+loadAll();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

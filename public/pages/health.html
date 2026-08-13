@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>健康顾问 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="health">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>❤️ 健康顾问</h1><p class="subtitle">控制疲劳、睡眠、拉伸和疼痛风险，让训练可持续</p></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px">
+    <div class="card"><div style="font-size:1.5rem;margin-bottom:6px">😴</div><h4 style="margin:0 0 6px;font-size:14px">睡眠</h4><p style="font-size:12px;color:var(--muted);margin:0">每晚7小时以上，强训练日优先保证恢复</p></div>
+    <div class="card"><div style="font-size:1.5rem;margin-bottom:6px">🧘</div><h4 style="margin:0 0 6px;font-size:14px">拉伸</h4><p style="font-size:12px;color:var(--muted);margin:0">训练后5-10分钟，重点处理髋、胸椎和肩部活动度</p></div>
+    <div class="card"><div style="font-size:1.5rem;margin-bottom:6px">⚠️</div><h4 style="margin:0 0 6px;font-size:14px">风险提醒</h4><p style="font-size:12px;color:var(--muted);margin:0">持续疼痛、麻木或关节刺痛时停止相关动作</p></div>
+    <div class="card"><div style="font-size:1.5rem;margin-bottom:6px">💧</div><h4 style="margin:0 0 6px;font-size:14px">水分补充</h4><p style="font-size:12px;color:var(--muted);margin:0">每日2-3L，训练中每20分钟补水150-200ml</p></div>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px;align-items:start">
+    <div class="card">
+      <div class="card-header"><span class="card-title">今日健康状态</span></div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">疲劳程度</label>
+        <div style="display:flex;gap:8px">
+          <button class="btn-secondary btn-sm" onclick="setFatigue(1,this)">😊 精力充沛</button>
+          <button class="btn-secondary btn-sm" onclick="setFatigue(2,this)">😐 正常</button>
+          <button class="btn-secondary btn-sm" onclick="setFatigue(3,this)">😪 有些疲劳</button>
+          <button class="btn-secondary btn-sm" onclick="setFatigue(4,this)">😫 非常疲劳</button>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">疼痛/不适部位</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="painAreas">
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="颈部"> 颈部</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="肩部"> 肩部</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="腰部"> 腰部</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="膝盖"> 膝盖</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="手腕"> 手腕</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="踝关节"> 踝关节</label>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>其他症状或备注</label><input id="healthNotes" placeholder="如：昨晚睡眠不足，腿部酸痛..."></div>
+      <button class="btn-primary" onclick="askHealthAdvice()" style="width:100%">获取恢复建议</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">AI 恢复建议</span></div>
+      <div id="healthAdvice" style="color:var(--muted);font-size:13px;line-height:1.7">填写今日健康状态，AI将为你提供针对性的恢复和调整建议...</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--accent)">
+    <div class="card-header"><span class="card-title">询问健康顾问 AI</span></div>
+    <div class="messages" id="healthChat" style="height:220px"></div>
+    <div class="chat-input-row">
+      <input id="healthInput" placeholder="例如：腿部训练后膝盖不舒服，怎么调整？" onkeydown="if(event.key==='Enter'){event.preventDefault();sendHealthMsg();}">
+      <button class="btn-primary" onclick="sendHealthMsg()">发送</button>
+    </div>
+  </div>
+</main>
+<script>
+let fatigueLevel=2;
+function setFatigue(v,btn){fatigueLevel=v;document.querySelectorAll('[onclick^="setFatigue"]').forEach(b=>b.style.borderColor='var(--border)');btn.style.borderColor='var(--accent)';}
+async function askHealthAdvice(){
+  const painAreas=Array.from(document.querySelectorAll('#painAreas input:checked')).map(i=>i.value);
+  const fatigueLabel=['','精力充沛','正常','有些疲劳','非常疲劳'][fatigueLevel];
+  const notes=document.getElementById('healthNotes').value;
+  const prompt=`我今天疲劳程度：${fatigueLabel}${painAreas.length?`，不适部位：${painAreas.join('、')}`:''}${notes?`，备注：${notes}`:''}。请给出今日是否适合训练及具体恢复建议。`;
+  document.getElementById('healthAdvice').textContent='分析中...';
+  try{
+    const r=await fetch('/api/chat/v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:prompt,agentType:'HEALTH'})}).then(r=>r.json());
+    document.getElementById('healthAdvice').innerHTML=(r.answer||'').replace(/\n/g,'<br>');
+  }catch(e){document.getElementById('healthAdvice').innerHTML=fatigueLevel>=3?'今日疲劳程度较高，建议进行主动恢复：<br>• 轻度散步20-30分钟<br>• 泡沫轴放松15分钟<br>• 充足睡眠优先于训练<br>• 明日评估再决定是否正常训练':'今日状态良好，可按计划正常训练。训练前确保充分热身，注意控制训练强度。';}
+}
+const HEALTH_KEY='sfa_health_history';
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
+function saveHealthHistory(){
+  const box=document.getElementById('healthChat');
+  const msgs=[...box.querySelectorAll('.msg')].map(el=>({role:el.classList.contains('user')?'user':'ai',html:el.innerHTML}));
+  try{localStorage.setItem(HEALTH_KEY,JSON.stringify(msgs));}catch(e){}
+}
+function loadHealthHistory(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(HEALTH_KEY)||'[]');
+    if(!saved.length)return;
+    const box=document.getElementById('healthChat');
+    box.innerHTML='';
+    saved.forEach(m=>{const d=document.createElement('div');d.className='msg '+m.role;d.innerHTML=m.html;box.appendChild(d);});
+    box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+async function sendHealthMsg(){
+  const input=document.getElementById('healthInput');const msg=input.value.trim();if(!msg)return;input.value='';
+  const box=document.getElementById('healthChat');
+  box.insertAdjacentHTML('beforeend',`<div class="msg user">${esc(msg)}</div>`);
+  box.insertAdjacentHTML('beforeend','<div class="msg ai" id="typing">思考中...</div>');box.scrollTop=box.scrollHeight;
+  try{
+    const r=await fetch('/api/chat/v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,agentType:'HEALTH'})}).then(r=>r.json());
+    document.getElementById('typing')?.remove();
+    box.insertAdjacentHTML('beforeend',`<div class="msg ai">${esc(r.answer||'').replaceAll('\n','<br>')}</div>`);
+  }catch(e){document.getElementById('typing')?.remove();box.insertAdjacentHTML('beforeend','<div class="msg ai" style="color:var(--red)">请求失败</div>');}
+  box.scrollTop=box.scrollHeight;
+  saveHealthHistory();
+}
+loadHealthHistory();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

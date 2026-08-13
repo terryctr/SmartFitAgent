@@ -1,0 +1,3 @@
+package com.smartfitagent.agent;
+import com.smartfitagent.StudyService; import com.smartfitagent.ai.AiClient; import com.smartfitagent.model.UserProfile;
+public class HealthAgent extends AbstractAgent { private final StudyService service; public HealthAgent(AiClient ai,StudyService s){super(ai);service=s;} protected String type(){return "recovery";} protected String systemPrompt(UserProfile u){return new PromptBuilder().identity("恢复与安全Agent，关注拉伸、睡眠、疼痛风险和训练疲劳").user(u).context("训练负荷",service.plans().toString()).rule("给出恢复建议和风险提醒，不替代医生诊断").build();} protected String nextActions(){return "安排恢复日；生成拉伸清单；标记动作风险";} protected String usedContext(){return "训练负荷、身体限制、恢复状态";} }

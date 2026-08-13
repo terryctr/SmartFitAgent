@@ -1,0 +1,116 @@
+server:
+  port: ${APP_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,application/javascript,application/json
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    accept-count: 100
+
+spring:
+  application:
+    name: SmartFitAgent
+  profiles:
+    active: ${SPRING_PROFILE:file}
+
+  datasource:
+    url: ${MYSQL_URL:jdbc:h2:mem:smartstudy;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL}
+    username: ${MYSQL_USER:sa}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  mvc:
+    static-path-pattern: /**
+    throw-exception-if-no-handler-found: false
+
+  web:
+    resources:
+      static-locations:
+        - classpath:/static/
+        - classpath:/public/
+      add-mappings: true
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+      continue-on-error: true
+
+ai:
+  provider: ${AI_PROVIDER:deepseek}
+  api-key: ${AI_API_KEY:}
+  model: ${AI_MODEL:}
+  base-url: ${AI_BASE_URL:}
+  timeout-seconds: 60
+  max-retries: 3
+  qwen:
+    url: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+    model: ${QWEN_MODEL:qwen-plus}
+    api-key: ${QWEN_API_KEY:}
+  deepseek:
+    url: https://api.deepseek.com/chat/completions
+    model: ${DEEPSEEK_MODEL:deepseek-chat}
+    api-key: ${DEEPSEEK_API_KEY:}
+  kimi:
+    url: https://api.moonshot.cn/v1/chat/completions
+    model: ${KIMI_MODEL:moonshot-v1-8k}
+    api-key: ${KIMI_API_KEY:}
+  pipeline:
+    enrich-prompt: true
+    detect-intent: true
+    inject-context: true
+    safety-filter: true
+    post-process: true
+  cache:
+    enabled: true
+    max-size: 500
+    expire-after-write-minutes: 30
+  rate-limit:
+    requests-per-minute: 60
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.smartfitagent: DEBUG
+    org.springframework.web: INFO
+    org.springframework.jdbc: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/smart-fit-agent.log
+    max-size: 10MB
+    max-history: 7

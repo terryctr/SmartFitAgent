@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>动作库 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="vocab">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🏋️ 动作库</h1><p class="subtitle">用复合动作和渐进超负荷保留肌肉并促进增肌</p></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="muscleFilter">
+    <button class="btn-secondary btn-sm active-pill" onclick="filterMuscle('all',this)">全部</button>
+    <button class="btn-secondary btn-sm" onclick="filterMuscle('胸',this)">胸</button>
+    <button class="btn-secondary btn-sm" onclick="filterMuscle('背',this)">背</button>
+    <button class="btn-secondary btn-sm" onclick="filterMuscle('腿',this)">腿</button>
+    <button class="btn-secondary btn-sm" onclick="filterMuscle('肩',this)">肩</button>
+    <button class="btn-secondary btn-sm" onclick="filterMuscle('手臂',this)">手臂</button>
+    <button class="btn-secondary btn-sm" onclick="filterMuscle('核心',this)">核心</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px" id="exerciseGrid"></div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><span class="card-title">每周训练组数参考</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;font-size:13px">
+      <div style="padding:10px;background:var(--surface);border-radius:8px"><div style="font-weight:700;margin-bottom:4px">胸</div><div style="color:var(--muted)">每周 10-16 组</div></div>
+      <div style="padding:10px;background:var(--surface);border-radius:8px"><div style="font-weight:700;margin-bottom:4px">背</div><div style="color:var(--muted)">每周 12-18 组</div></div>
+      <div style="padding:10px;background:var(--surface);border-radius:8px"><div style="font-weight:700;margin-bottom:4px">腿</div><div style="color:var(--muted)">每周 12-20 组</div></div>
+      <div style="padding:10px;background:var(--surface);border-radius:8px"><div style="font-weight:700;margin-bottom:4px">肩</div><div style="color:var(--muted)">每周 8-14 组</div></div>
+      <div style="padding:10px;background:var(--surface);border-radius:8px"><div style="font-weight:700;margin-bottom:4px">手臂</div><div style="color:var(--muted)">每周 6-10 组</div></div>
+      <div style="padding:10px;background:var(--surface);border-radius:8px"><div style="font-weight:700;margin-bottom:4px">核心</div><div style="color:var(--muted)">每周 8-12 组</div></div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted)">减脂期重量保持，容量可略保守；增肌期逐步增加组数。同一肌群训练间隔至少48小时。</div>
+  </div>
+</main>
+<script>
+const EXERCISES=[
+  {name:'深蹲',muscle:'腿',type:'复合',sets:'4×5-8',tip:'膝盖与脚尖同向，髋关节低于膝关节，核心全程收紧'},
+  {name:'卧推',muscle:'胸',type:'复合',sets:'4×6-10',tip:'肩胛收紧贴实训练凳，动作全程可控，不反弹'},
+  {name:'硬拉',muscle:'背',type:'复合',sets:'3×3-6',tip:'优先技术质量，不盲目冲重量，腰背始终保持中立位'},
+  {name:'坐姿划船',muscle:'背',type:'复合',sets:'4×8-12',tip:'肩胛骨主动向中间收缩，感受背部肌肉全程发力'},
+  {name:'引体向上',muscle:'背',type:'复合',sets:'4×6-10',tip:'全程动作，顶部停顿，下放时缓慢离心'},
+  {name:'过头推举',muscle:'肩',type:'复合',sets:'4×8-12',tip:'站姿或坐姿，核心收紧，避免腰部过度弓起'},
+  {name:'哑铃侧平举',muscle:'肩',type:'孤立',sets:'3×12-15',tip:'轻重量，控制离心，肩膀不要耸起'},
+  {name:'腿举',muscle:'腿',type:'复合',sets:'3×12-15',tip:'脚的位置决定发力重点，膝关节不要锁死'},
+  {name:'臀推',muscle:'腿',type:'孤立',sets:'4×10-15',tip:'顶部挤压臀部，骨盆保持稳定，肩膀放松'},
+  {name:'罗马尼亚硬拉',muscle:'腿',type:'复合',sets:'3×10-12',tip:'以髋关节为轴，保持小腿垂直地面，臀部向后推'},
+  {name:'绳索夹胸',muscle:'胸',type:'孤立',sets:'3×12-15',tip:'感受胸大肌内侧收缩，手臂微弯保持稳定'},
+  {name:'哑铃弯举',muscle:'手臂',type:'孤立',sets:'3×10-15',tip:'肘部固定，只有前臂运动，顶部挤压二头'},
+  {name:'三头下压',muscle:'手臂',type:'孤立',sets:'3×12-15',tip:'肘关节固定，全程伸展感受三头肌收缩'},
+  {name:'平板撑',muscle:'核心',type:'静态',sets:'3×45-60s',tip:'身体成一条直线，不要塌腰或翘臀，正常呼吸'},
+  {name:'俄罗斯转体',muscle:'核心',type:'动态',sets:'3×20',tip:'双脚离地增加难度，旋转来自脊柱而非手臂'},
+  {name:'上斜哑铃飞鸟',muscle:'胸',type:'孤立',sets:'3×12-15',tip:'手臂微弯保持弧线轨迹，感受上胸拉伸与收缩'},
+];
+let all=[...EXERCISES];
+function renderExercises(list){
+  const typeColor={'复合':'var(--accent)','孤立':'var(--blue)','静态':'var(--green)','动态':'var(--purple)'};
+  document.getElementById('exerciseGrid').innerHTML=list.map(e=>`
+    <div class="card" style="cursor:pointer" onclick="showDetail(this)" data-tip="${e.tip}">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700">${e.name}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${e.muscle}</div>
+        </div>
+        <span class="badge" style="background:${typeColor[e.type]+'22'};color:${typeColor[e.type]};font-size:11px">${e.type}</span>
+      </div>
+      <div style="font-size:12px;color:var(--accent);font-weight:600;margin-bottom:6px">推荐：${e.sets}</div>
+      <div style="font-size:12px;color:var(--muted);display:none" class="tip-text">${e.tip}</div>
+      <button style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0;margin-top:4px" onclick="event.stopPropagation();toggleTip(this)">▼ 技术要点</button>
+    </div>`).join('');
+}
+function toggleTip(btn){
+  const card=btn.parentElement;const tip=card.querySelector('.tip-text');
+  tip.style.display=tip.style.display==='none'?'block':'none';
+  btn.textContent=tip.style.display==='none'?'▼ 技术要点':'▲ 收起';
+}
+function filterMuscle(muscle,btn){
+  document.querySelectorAll('#muscleFilter button').forEach(b=>b.classList.remove('active-pill'));
+  btn.classList.add('active-pill');
+  renderExercises(muscle==='all'?all:all.filter(e=>e.muscle===muscle));
+}
+renderExercises(all);
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

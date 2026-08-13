@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>风险纠正 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="mistakes">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>⚠️ 风险纠正</h1><p class="subtitle">识别训练中的高风险动作和计划漏洞，保护长期健康</p></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:20px">
+    <div class="card" style="border-left:3px solid var(--red)">
+      <h4 style="color:var(--red);margin:0 0 8px;font-size:14px">🦵 膝盖不适</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">减少跳跃冲击，深蹲先控制幅度和膝盖轨迹（膝盖不内扣），避免重量过大。</p>
+      <div style="font-size:11px;color:var(--muted)">替代动作：箱式深蹲、坐姿腿举（短幅度）、游泳有氧</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--yellow)">
+      <h4 style="color:var(--yellow);margin:0 0 8px;font-size:14px">🔥 热量过低</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">缺口过大（>500kcal）会影响力量表现和肌肉保留，建议温和控制，配合蛋白质达标。</p>
+      <div style="font-size:11px;color:var(--muted)">警示信号：训练中无力、持续疲劳、情绪低落</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--accent)">
+      <h4 style="color:var(--accent);margin:0 0 8px;font-size:14px">⏰ 恢复不足</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">同一肌群至少间隔48小时，睡眠不足时降低训练量，不要强撑。</p>
+      <div style="font-size:11px;color:var(--muted)">过度训练信号：DOMS超过72h、力量持续下降</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <h4 style="color:var(--blue);margin:0 0 8px;font-size:14px">🔙 腰背疼痛</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">硬拉和深蹲时保持脊柱中立位，避免弓腰。出现剧烈疼痛立即停止。</p>
+      <div style="font-size:11px;color:var(--muted)">预防：加强核心肌群，重视髋屈肌拉伸</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--purple)">
+      <h4 style="color:var(--purple);margin:0 0 8px;font-size:14px">💪 肩部撞击</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">推举时肘部不要过度外展，卧推肩胛骨收紧，飞鸟动作不要低于肩部水平。</p>
+      <div style="font-size:11px;color:var(--muted)">替代：中性握哑铃推举、电缆飞鸟</div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green)">
+      <h4 style="color:var(--green);margin:0 0 8px;font-size:14px">📈 重量冲太快</h4>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">每周增重不超过2.5-5kg，技术不稳定时先固化动作再加负荷。</p>
+      <div style="font-size:11px;color:var(--muted)">原则：先做到最后一组技术仍标准，再考虑加重</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-color:var(--accent)">
+    <div class="card-header"><span class="card-title">询问风险评估 AI</span></div>
+    <div class="messages" id="riskChat" style="height:200px">
+      <div class="msg ai">描述你遇到的问题，如：训练中某个部位不舒服，或者某个动作做起来感觉怪。我来帮你评估风险并给出调整建议。</div>
+    </div>
+    <div class="chat-input-row">
+      <input id="riskInput" placeholder="如：深蹲时膝盖外侧有些不适..." onkeydown="if(event.key==='Enter'){event.preventDefault();sendRiskMsg();}">
+      <button class="btn-primary" onclick="sendRiskMsg()">发送</button>
+    </div>
+  </div>
+</main>
+<script>
+const RISK_KEY='sfa_risk_history';
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
+function saveRiskHistory(){
+  const box=document.getElementById('riskChat');
+  const msgs=[...box.querySelectorAll('.msg')].map(el=>({role:el.classList.contains('user')?'user':'ai',html:el.innerHTML}));
+  try{localStorage.setItem(RISK_KEY,JSON.stringify(msgs));}catch(e){}
+}
+function loadRiskHistory(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(RISK_KEY)||'[]');
+    if(!saved.length)return;
+    const box=document.getElementById('riskChat');
+    box.innerHTML='';
+    saved.forEach(m=>{const d=document.createElement('div');d.className='msg '+m.role;d.innerHTML=m.html;box.appendChild(d);});
+    box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+async function sendRiskMsg(){
+  const input=document.getElementById('riskInput');const msg=input.value.trim();if(!msg)return;input.value='';
+  const box=document.getElementById('riskChat');
+  box.insertAdjacentHTML('beforeend',`<div class="msg user">${esc(msg)}</div>`);
+  box.insertAdjacentHTML('beforeend','<div class="msg ai" id="typing">评估中...</div>');box.scrollTop=box.scrollHeight;
+  try{
+    const r=await fetch('/api/chat/v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,agentType:'RECOVERY'})}).then(r=>r.json());
+    document.getElementById('typing')?.remove();
+    box.insertAdjacentHTML('beforeend',`<div class="msg ai">${esc(r.answer||'').replaceAll('\n','<br>')}</div>`);
+  }catch(e){
+    document.getElementById('typing')?.remove();
+    box.insertAdjacentHTML('beforeend','<div class="msg ai">如有持续疼痛或不适，建议先减轻重量或停止该动作，如症状持续超过3天请咨询专业医生或理疗师。</div>');
+  }
+  box.scrollTop=box.scrollHeight;
+  saveRiskHistory();
+}
+loadRiskHistory();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

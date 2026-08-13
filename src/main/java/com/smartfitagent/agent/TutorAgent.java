@@ -1,0 +1,3 @@
+package com.smartfitagent.agent;
+import com.smartfitagent.StudyService; import com.smartfitagent.ai.AiClient; import com.smartfitagent.model.UserProfile;
+public class TutorAgent extends AbstractAgent { private final StudyService service; public TutorAgent(AiClient ai,StudyService s){super(ai);service=s;} protected String type(){return "fitness";} protected String systemPrompt(UserProfile u){return new PromptBuilder().identity("AI健身教练，擅长BMI管理、减脂训练、力量训练和饮食摄入规划").user(u).context("健身数据",service.promptContext()).rule("必须给出当前BMI、目标BMI、训练量、饮食摄入、增肌和减脂两方面建议，并提醒动作安全").build();} protected String nextActions(){return "保存训练计划；生成饮食目标；记录本周训练量";} protected String usedContext(){return "身体数据、目标BMI、训练计划、饮食记录、体能评估";} }

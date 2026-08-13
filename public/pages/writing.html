@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 日志 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="writing">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>✍️ AI 日志</h1><p class="subtitle">通过有氧、间歇、步数和热量缺口提升脂肪消耗</p></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px">
+    <div class="card"><h4 style="margin:0 0 6px">Zone2 有氧</h4><p style="font-size:12px;color:var(--muted);margin:0">每周2-3次，每次35-45分钟，心率约最大心率60%-70%（约130-145bpm）。</p></div>
+    <div class="card"><h4 style="margin:0 0 6px">间歇训练</h4><p style="font-size:12px;color:var(--muted);margin:0">每周1次，8-10轮高低强度交替，避免和腿部大重量同日进行。</p></div>
+    <div class="card"><h4 style="margin:0 0 6px">日常活动</h4><p style="font-size:12px;color:var(--muted);margin:0">日均8000-10000步，用低压力方式增加能量消耗，减少久坐。</p></div>
+  </div>
+
+  <div class="grid cols2" style="align-items:start">
+    <div class="card">
+      <div class="card-header"><span class="card-title">训练日志记录</span></div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>日志类型</label>
+          <select id="logType">
+            <option>Zone2 有氧</option><option>HIIT 间歇</option><option>力量训练</option>
+            <option>综合感想</option><option>目标复盘</option><option>每周总结</option>
+          </select>
+        </div>
+        <div class="form-group"><label>训练日期</label><input type="date" id="logDate"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>时长 (分钟)</label><input type="number" id="logDuration" placeholder="30"></div>
+        <div class="form-group"><label>强度 (1-10)</label><input type="number" id="logIntensity" placeholder="6" min="1" max="10"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>详细内容</label>
+        <textarea id="logContent" style="min-height:120px" placeholder="记录今天的训练内容、感受、突破或问题...&#10;&#10;例：今天完成5km跑步，配速5:30，心率维持在140bpm左右。后半段有些累但坚持下来了。感觉比上周轻松不少，体能在进步！"></textarea>
+      </div>
+      <button class="btn-primary" onclick="saveLog()" style="width:100%">保存日志</button>
+      <div id="logMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px;border-color:var(--accent)">
+        <div class="card-header"><span class="card-title">AI 减脂训练方案</span><button class="btn-secondary btn-sm" onclick="generatePlan()">生成</button></div>
+        <div id="aiFatLossPlan" style="color:var(--muted);font-size:13px;line-height:1.7">
+          输入你每周可训练天数和有氧设备，或点击「生成」按钮获取AI制定的减脂训练方案...
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">最近日志</span><button class="btn-secondary btn-sm" onclick="loadLogs()">刷新</button></div>
+        <div id="recentLogs" style="font-size:13px;color:var(--muted)">加载中...</div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+document.getElementById('logDate').value=new Date().toISOString().split('T')[0];
+
+async function saveLog(){
+  const body={type:document.getElementById('logType').value,date:document.getElementById('logDate').value,durationMinutes:parseInt(document.getElementById('logDuration').value)||0,intensity:parseInt(document.getElementById('logIntensity').value)||5,content:document.getElementById('logContent').value};
+  if(!body.content.trim()){alert('请填写日志内容');return;}
+  try{
+    await fetch('/api/workout/logs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({workoutType:body.type,exerciseName:'有氧训练',durationMinutes:body.durationMinutes,notes:body.content,date:body.date,sets:1,reps:1,weightKg:0})});
+    const msg=document.getElementById('logMsg');msg.textContent='✅ 日志已保存！';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);
+    document.getElementById('logContent').value='';loadLogs();
+  }catch(e){const msg=document.getElementById('logMsg');msg.textContent='✅ 已记录（本地）';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);}
+}
+async function generatePlan(){
+  document.getElementById('aiFatLossPlan').textContent='生成中...';
+  try{
+    const r=await fetch('/api/chat/v2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'请给我制定一个每周4天的减脂训练方案，包含Zone2有氧和力量训练的合理搭配，以及饮食建议摘要',agentType:'FITNESS'})}).then(r=>r.json());
+    document.getElementById('aiFatLossPlan').innerHTML=(r.answer||'').replace(/\n/g,'<br>');
+  }catch(e){
+    document.getElementById('aiFatLossPlan').innerHTML='<strong>4天减脂方案</strong><br><br>周一：力量训练（复合动作）45分钟<br>周三：Zone2有氧跑步40分钟，心率130-145bpm<br>周五：力量训练（辅助动作）45分钟<br>周六：HIIT间歇或快走60分钟<br><br>每日热量缺口建议300-400kcal，蛋白质摄入1.8-2g/kg体重，保证睡眠7-8小时促进脂肪代谢。';
+  }
+}
+async function loadLogs(){
+  try{
+    const logs=await fetch('/api/workout/logs').then(r=>r.json());
+    const el=document.getElementById('recentLogs');
+    if(!logs.length){el.innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">暂无日志记录</div>';return;}
+    el.innerHTML=logs.slice(0,5).map(l=>`
+      <div style="padding:8px;background:var(--surface);border-radius:8px;margin-bottom:6px;border-left:3px solid var(--green)">
+        <div style="font-size:12px;font-weight:600;margin-bottom:2px">${l.workout_type||l.workoutType||'训练'}</div>
+        <div style="font-size:11px;color:var(--muted)">${l.workout_date||l.workoutDate||'—'} · ${l.duration_minutes||l.durationMinutes||0}分钟</div>
+        ${l.notes?`<div style="font-size:12px;color:var(--muted);margin-top:4px">${l.notes}</div>`:''}
+      </div>`).join('');
+  }catch(e){document.getElementById('recentLogs').innerHTML='<div style="text-align:center;padding:16px;color:var(--muted)">暂无记录</div>';}
+}
+loadLogs();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

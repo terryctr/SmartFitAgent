@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>挑战赛 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.challenge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.challenge-card{background:var(--card);border-radius:12px;padding:16px;border:1px solid var(--border);position:relative;overflow:hidden}
+.challenge-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.challenge-card.strength::before{background:#f59e0b}
+.challenge-card.cardio::before{background:#10b981}
+.challenge-card.nutrition::before{background:#6366f1}
+.challenge-card.habit::before{background:#ec4899}
+.prog-bar{height:8px;background:var(--surface);border-radius:4px;overflow:hidden;margin:8px 0 4px}
+.prog-bar .fill{height:100%;background:var(--accent);border-radius:4px;transition:width .5s}
+.btn-join{width:100%;margin-top:10px;padding:8px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer}
+.btn-join.join{background:var(--accent);color:white}
+.btn-join.checkin{background:#10b981;color:white}
+.btn-join.joined{background:var(--surface);color:var(--muted);cursor:default}
+.checkin-dot{aspect-ratio:1;border-radius:50%;background:var(--surface)}
+.checkin-dot.done{background:var(--accent)}
+.checkin-dot.today{border:2px solid var(--accent)}
+.rank-badge{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+</style>
+</head>
+<body data-page="challenges">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🏆 挑战赛广场</h1><p class="subtitle">参加健身挑战，积累积分，赢得成就徽章</p></div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">🤖 AI为你推荐的挑战</span></div>
+    <div id="recChallenges" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+      <div style="color:var(--muted);font-size:13px">加载推荐中...</div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <span style="font-size:15px;font-weight:600">🔥 进行中的挑战</span>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn-secondary btn-sm active-pill" onclick="filterChallenges('all',this)">全部</button>
+      <button class="btn-secondary btn-sm" onclick="filterChallenges('STRENGTH',this)">💪 力量</button>
+      <button class="btn-secondary btn-sm" onclick="filterChallenges('CARDIO',this)">🏃 有氧</button>
+      <button class="btn-secondary btn-sm" onclick="filterChallenges('NUTRITION',this)">🥗 饮食</button>
+    </div>
+  </div>
+  <div class="challenge-grid" id="challengeGrid"><div style="color:var(--muted)">加载挑战中...</div></div>
+
+  <div class="grid cols2" style="margin-top:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">📅 本月打卡记录</span></div>
+      <div class="checkin-grid" id="checkinGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px"></div>
+      <div style="display:flex;gap:12px;margin-top:10px;font-size:12px;color:var(--muted)">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-right:3px"></span>已打卡</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--surface);border:1px solid var(--border);margin-right:3px"></span>未打卡</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">🥇 总积分排行榜</span></div>
+      <div id="leaderboard"><div style="color:var(--muted);text-align:center;padding:16px;font-size:13px">加载中...</div></div>
+    </div>
+  </div>
+</main>
+<script>
+let allChallenges=[];
+async function loadChallenges(){
+  try{const r=await fetch('/api/challenges');allChallenges=await r.json();renderChallenges(allChallenges);}
+  catch(e){renderDemoChallenges();}
+}
+function renderDemoChallenges(){
+  allChallenges=[
+    {id:'ch001',title:'30天深蹲挑战',description:'每日深蹲，从50个逐渐增加到100个，提升腿部力量与爆发力',challenge_type:'STRENGTH',target_value:30,target_unit:'天',reward_points:100},
+    {id:'ch002',title:'每日万步挑战',description:'连续21天每天完成10000步，养成有氧运动习惯',challenge_type:'CARDIO',target_value:21,target_unit:'天',reward_points:80},
+    {id:'ch003',title:'蛋白质摄入挑战',description:'连续14天每日蛋白质摄入达标（体重×1.8g），支持肌肉合成',challenge_type:'NUTRITION',target_value:14,target_unit:'天',reward_points:60},
+    {id:'ch004',title:'早起晨练挑战',description:'连续7天早上7点前完成20分钟晨间锻炼，激活身体代谢',challenge_type:'HABIT',target_value:7,target_unit:'天',reward_points:50},
+    {id:'ch005',title:'无糖饮食挑战',description:'坚持7天不摄入添加糖，减少精制碳水，优化血糖水平',challenge_type:'NUTRITION',target_value:7,target_unit:'天',reward_points:40},
+  ];
+  renderChallenges(allChallenges);
+}
+function normalizeChallenge(c){
+  return {
+    id: c.id || c.ID,
+    title: c.title || c.TITLE,
+    description: c.description || c.DESCRIPTION,
+    challenge_type: c.challenge_type || c.challengeType || c.CHALLENGE_TYPE || 'STRENGTH',
+    target_value: c.target_value ?? c.targetValue ?? c.TARGET_VALUE ?? 30,
+    target_unit: c.target_unit || c.targetUnit || c.TARGET_UNIT || '天',
+    reward_points: c.reward_points ?? c.rewardPoints ?? c.REWARD_POINTS ?? 0,
+  };
+}
+function renderChallenges(list){
+  const typeClass={STRENGTH:'strength',CARDIO:'cardio',NUTRITION:'nutrition',HABIT:'habit'};
+  const typeIcon={STRENGTH:'💪',CARDIO:'🏃',NUTRITION:'🥗',HABIT:'⏰'};
+  document.getElementById('challengeGrid').innerHTML=list.map(raw=>{const c=normalizeChallenge(raw);return`
+    <div class="challenge-card ${(typeClass[c.challenge_type]||'').toLowerCase()}" id="card-${c.id}">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${typeIcon[c.challenge_type]||'🎯'} ${c.title}</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5">${c.description}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="badge" style="background:var(--surface);color:var(--muted)">⏱ ${c.target_value}${c.target_unit}</span>
+        <span class="badge badge-orange">⭐ ${c.reward_points}积分</span>
+        <span class="badge" style="background:var(--surface);color:var(--muted)">${c.challenge_type}</span>
+      </div>
+      <div class="prog-bar"><div class="fill" id="fill-${c.id}" style="width:0%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px"><span>进度</span><span id="prog-${c.id}">0 / ${c.target_value}</span></div>
+      <button class="btn-join join" id="btn-${c.id}" onclick="joinChallenge('${c.id}')">🚀 参加挑战</button>
+    </div>`}).join('');
+}
+function filterChallenges(type,btn){
+  document.querySelectorAll('[onclick^="filterChallenges"]').forEach(b=>b.classList.remove('active-pill'));
+  btn.classList.add('active-pill');
+  renderChallenges(type==='all'?allChallenges:allChallenges.filter(c=>c.challenge_type===type));
+}
+async function joinChallenge(id){
+  const btn=document.getElementById('btn-'+id);btn.disabled=true;btn.textContent='加入中...';
+  try{await fetch(`/api/challenges/${id}/join?userId=u1001`,{method:'POST'});}catch(e){}
+  btn.className='btn-join checkin';btn.textContent='✅ 今日打卡';btn.disabled=false;
+  btn.onclick=()=>checkinChallenge(id);showToast('已加入挑战！开始打卡吧 💪');
+}
+function checkinChallenge(id){
+  const c=allChallenges.find(x=>x.id===id);const target=c?c.target_value:30;
+  const progEl=document.getElementById('prog-'+id);
+  const cur=parseInt(progEl.textContent.split('/')[0].trim())+1;
+  const pct=Math.min(100,(cur/target)*100);
+  document.getElementById('fill-'+id).style.width=pct+'%';
+  progEl.textContent=`${cur} / ${target}`;
+  fetch(`/api/challenges/${id}/progress?userId=u1001`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({value:cur})}).catch(()=>{});
+  if(cur>=target){showToast('🎉 恭喜！挑战完成！');document.getElementById('btn-'+id).className='btn-join joined';document.getElementById('btn-'+id).textContent='🏆 已完成';document.getElementById('btn-'+id).disabled=true;}
+  else{showToast('✅ 今日已打卡！继续保持！');}
+}
+async function loadRecommendations(){
+  try{
+    const r=await fetch('/api/challenges/recommend?bmi=22&mode=减脂与力量并行');const recs=await r.json();
+    document.getElementById('recChallenges').innerHTML=recs.map(r=>`<div class="card"><div style="font-weight:700;margin-bottom:4px;color:var(--accent)">🎯 ${r.title||r.name}</div><div style="font-size:12px;color:var(--muted)">${r.reason||r.description||''}</div><div style="margin-top:6px;font-size:12px;color:#f59e0b">⭐ ${r.points||0}积分</div></div>`).join('');
+  }catch(e){
+    document.getElementById('recChallenges').innerHTML=`<div class="card"><div style="font-weight:700;color:var(--accent);margin-bottom:4px">🎯 30天深蹲挑战</div><div style="font-size:12px;color:var(--muted)">适合你的力量训练目标，循序渐进</div><div style="margin-top:6px;font-size:12px;color:#f59e0b">⭐ 100积分</div></div><div class="card"><div style="font-weight:700;color:var(--accent);margin-bottom:4px">🎯 蛋白质摄入挑战</div><div style="font-size:12px;color:var(--muted)">营养配合训练，加速肌肉合成</div><div style="margin-top:6px;font-size:12px;color:#f59e0b">⭐ 60积分</div></div>`;
+  }
+}
+function renderCheckinGrid(){
+  const today=new Date();const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();const todayDay=today.getDate();
+  const checked=new Set([1,3,4,6,7,8,10,11,13,14,todayDay-1,todayDay].filter(d=>d>0&&d<=daysInMonth));
+  document.getElementById('checkinGrid').innerHTML=Array.from({length:daysInMonth},(_,i)=>{
+    const d=i+1;return`<div class="checkin-dot ${checked.has(d)?'done':''} ${d===todayDay?'today':''}" title="${d}日" style="height:auto;padding-top:100%"></div>`;
+  }).join('');
+}
+function renderLeaderboard(){
+  const board=[{rank:1,name:'训练达人A',points:680,streak:15},{rank:2,name:'减脂战士B',points:520,streak:12},{rank:3,name:'力量大师C',points:450,streak:9},{rank:4,name:'你',points:210,streak:3},{rank:5,name:'健康使者D',points:180,streak:4}];
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('leaderboard').innerHTML=board.map(p=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div class="rank-badge" style="background:${p.rank<=3?['#fbbf24','#9ca3af','#d97706'][p.rank-1]:'var(--surface)'};color:${p.rank<=3?'#1a1a2e':'var(--muted)'}">${p.rank<=3?medals[p.rank-1]:p.rank}</div>
+      <div style="flex:1"><div style="font-size:13px;font-weight:${p.name==='你'?700:400};color:${p.name==='你'?'var(--accent)':'var(--text)'}">${p.name}</div><div style="font-size:11px;color:var(--muted)">连续${p.streak}天</div></div>
+      <div style="color:#f59e0b;font-weight:700;font-size:13px">${p.points}分</div>
+    </div>`).join('');
+}
+function showToast(msg){const t=document.createElement('div');t.style.cssText='position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:10px 20px;border-radius:20px;font-weight:600;z-index:9999;font-size:13px';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2500);}
+loadChallenges();loadRecommendations();renderCheckinGrid();renderLeaderboard();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练计时 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.timer-display{font-size:5rem;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;color:var(--text);letter-spacing:2px;line-height:1;margin:20px 0}
+.timer-display.running{color:var(--accent)}
+.timer-display.warning{color:var(--yellow)}
+.timer-display.done{color:var(--green)}
+.timer-btns{display:flex;gap:10px;justify-content:center;margin-bottom:20px}
+.preset-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.preset-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .2s;font-size:13px;color:var(--text)}
+.preset-btn:hover,.preset-btn.active{border-color:var(--accent);background:rgba(249,115,22,.1);color:var(--accent)}
+.set-log{padding:8px 10px;background:var(--surface);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;font-size:13px}
+</style>
+</head>
+<body data-page="pomodoro">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>⏱ 训练计时</h1><p class="subtitle">组间休息计时、有氧计时和全程训练计时</p></div>
+  </div>
+
+  <div class="grid cols2" style="align-items:start">
+    <div class="card" style="text-align:center">
+      <div class="card-header" style="justify-content:center"><span class="card-title" id="timerLabel">组间休息</span></div>
+      <div class="timer-display" id="timerDisplay">01:30</div>
+      <div style="margin-bottom:16px;font-size:12px;color:var(--muted)" id="timerStatus">准备开始</div>
+      <div class="timer-btns">
+        <button class="btn-primary" id="startBtn" onclick="startTimer()" style="min-width:80px">开始</button>
+        <button class="btn-secondary" onclick="pauseTimer()">暂停</button>
+        <button class="btn-secondary" onclick="resetTimer()">重置</button>
+      </div>
+      <div class="card-header" style="margin-bottom:10px"><span class="card-title">预设时间</span></div>
+      <div class="preset-grid">
+        <div class="preset-btn active" onclick="setPreset(90,'组间休息',this)">1:30<div style="font-size:10px;color:var(--muted)">短休息</div></div>
+        <div class="preset-btn" onclick="setPreset(120,'组间休息',this)">2:00<div style="font-size:10px;color:var(--muted)">标准休息</div></div>
+        <div class="preset-btn" onclick="setPreset(180,'组间休息',this)">3:00<div style="font-size:10px;color:var(--muted)">长休息</div></div>
+        <div class="preset-btn" onclick="setPreset(300,'组间休息',this)">5:00<div style="font-size:10px;color:var(--muted)">大重量</div></div>
+        <div class="preset-btn" onclick="setPreset(1200,'有氧训练',this)">20:00<div style="font-size:10px;color:var(--muted)">短有氧</div></div>
+        <div class="preset-btn" onclick="setPreset(1800,'有氧训练',this)">30:00<div style="font-size:10px;color:var(--muted)">标准有氧</div></div>
+        <div class="preset-btn" onclick="setPreset(2400,'有氧训练',this)">40:00<div style="font-size:10px;color:var(--muted)">长有氧</div></div>
+        <div class="preset-btn" onclick="setPreset(2700,'全程训练',this)">45:00<div style="font-size:10px;color:var(--muted)">力量训练</div></div>
+      </div>
+      <div style="margin-top:14px">
+        <label style="font-size:12px;color:var(--muted)">自定义时间（秒）</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input type="number" id="customSeconds" placeholder="如：90" min="1" style="flex:1">
+          <button class="btn-secondary" onclick="setCustom()">设置</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">本次训练记录</span></div>
+        <div class="form-row cols2">
+          <div class="form-group"><label>当前动作</label><input id="currentExercise" placeholder="深蹲"></div>
+          <div class="form-group"><label>当前组</label><input type="number" id="currentSet" value="1" min="1"></div>
+        </div>
+        <div class="form-row cols2">
+          <div class="form-group"><label>次数</label><input type="number" id="currentReps" value="8" min="1"></div>
+          <div class="form-group"><label>重量 (kg)</label><input type="number" id="currentWeight" value="0" step="0.5"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn-primary" onclick="logSet()" style="flex:1">记录这组</button>
+          <button class="btn-secondary" onclick="clearSetLog()">清空</button>
+        </div>
+        <div id="setLog" style="max-height:220px;overflow-y:auto">
+          <div style="text-align:center;color:var(--muted);font-size:12px;padding:16px">开始训练后组次记录将显示在这里</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">训练备注</span></div>
+        <textarea id="sessionNotes" style="width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;font-size:13px;font-family:inherit;resize:vertical" placeholder="今日训练感受、状态、突破..."></textarea>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+let totalSeconds=90,left=90,interval=null,running=false,setLogs=[];
+
+function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function render(){
+  const el=document.getElementById('timerDisplay');
+  el.textContent=fmt(left);
+  el.className='timer-display'+(running?' running':'')+(left<=10&&left>0?' warning':'')+(left===0?' done':'');
+  document.getElementById('timerStatus').textContent=left===0?'时间到！':running?`剩余 ${fmt(left)}`:'已暂停';
+  document.getElementById('startBtn').textContent=left===0?'重置':running?'运行中':'开始';
+}
+function startTimer(){
+  if(left===0){resetTimer();return;}
+  if(running)return;
+  running=true;
+  interval=setInterval(()=>{
+    left=Math.max(0,left-1);render();
+    if(left===0){clearInterval(interval);interval=null;running=false;document.getElementById('startBtn').textContent='重置';}
+  },1000);
+  render();
+}
+function pauseTimer(){if(interval){clearInterval(interval);interval=null;running=false;render();}}
+function resetTimer(){pauseTimer();left=totalSeconds;running=false;render();}
+function setPreset(secs,label,btn){
+  totalSeconds=secs;left=secs;running=false;pauseTimer();
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('timerLabel').textContent=label;
+  render();
+}
+function setCustom(){
+  const v=parseInt(document.getElementById('customSeconds').value);
+  if(!v||v<1)return;
+  totalSeconds=v;left=v;running=false;pauseTimer();
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('timerLabel').textContent='自定义';
+  render();
+}
+function logSet(){
+  const ex=document.getElementById('currentExercise').value||'未命名动作';
+  const set=document.getElementById('currentSet').value;
+  const reps=document.getElementById('currentReps').value;
+  const weight=document.getElementById('currentWeight').value;
+  const entry={ex,set,reps,weight,time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})};
+  setLogs.push(entry);
+  document.getElementById('currentSet').value=parseInt(set)+1;
+  renderSetLog();
+  resetTimer();startTimer();
+}
+function renderSetLog(){
+  const el=document.getElementById('setLog');
+  if(!setLogs.length){el.innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px">暂无记录</div>';return;}
+  el.innerHTML=setLogs.map((l,i)=>`
+    <div class="set-log">
+      <span>${i+1}. ${l.ex} — 第${l.set}组 ${l.reps}次 ${l.weight>0?l.weight+'kg':''}</span>
+      <span style="color:var(--muted)">${l.time}</span>
+    </div>`).join('');
+  el.scrollTop=el.scrollHeight;
+}
+function clearSetLog(){setLogs=[];renderSetLog();}
+render();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

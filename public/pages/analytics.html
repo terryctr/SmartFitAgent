@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数据分析 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="analytics">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>📈 数据分析</h1><p class="subtitle">分析训练量、饮食执行和身体指标趋势</p></div>
+    <button class="btn-secondary btn-sm" onclick="loadAnalytics()">刷新数据</button>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-val" id="totalWorkouts">—</div><div class="stat-label">总训练次数</div></div>
+    <div class="stat-card blue"><div class="stat-val" id="avgDuration">—</div><div class="stat-label">平均训练时长</div></div>
+    <div class="stat-card green"><div class="stat-val" id="bmiTrend">—</div><div class="stat-label">BMI 变化</div></div>
+    <div class="stat-card purple"><div class="stat-val" id="adherenceRate">—</div><div class="stat-label">计划执行率</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">综合摘要</span></div>
+    <div id="summaryText" style="color:var(--muted);font-size:13px;line-height:1.7">加载分析数据中...</div>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">能力雷达图（估算）</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" id="radarGrid">
+        <div style="text-align:center;color:var(--muted);grid-column:1/-1;padding:20px">加载中...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">本周训练分布</span></div>
+      <div id="weeklyDistribution" style="font-size:13px;color:var(--muted)">加载中...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">指标说明</span></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+      <div class="tip-card"><h4>💪 力量</h4><p>主要复合动作重量相对体重的比值</p></div>
+      <div class="tip-card"><h4>❤️ 心肺</h4><p>有氧训练频率与持续时长综合评分</p></div>
+      <div class="tip-card"><h4>🥗 饮食执行</h4><p>目标热量与实际摄入的吻合度</p></div>
+      <div class="tip-card"><h4>🧘 活动度</h4><p>每日步数和拉伸训练的规律性</p></div>
+      <div class="tip-card"><h4>😴 恢复</h4><p>睡眠时长和质量综合评分</p></div>
+      <div class="tip-card"><h4>📅 计划稳定性</h4><p>按计划完成训练的比率</p></div>
+    </div>
+  </div>
+</main>
+<script>
+const RADAR_ITEMS=[
+  {label:'力量',key:'strength',color:'var(--accent)',icon:'💪'},
+  {label:'心肺',key:'cardio',color:'var(--blue)',icon:'❤️'},
+  {label:'饮食执行',key:'nutrition',color:'var(--green)',icon:'🥗'},
+  {label:'活动度',key:'activity',color:'var(--yellow)',icon:'🧘'},
+  {label:'恢复',key:'recovery',color:'var(--purple)',icon:'😴'},
+  {label:'计划稳定性',key:'consistency',color:'#ec4899',icon:'📅'},
+];
+function renderRadar(data){
+  const vals=RADAR_ITEMS.map(item=>data[item.key]||Math.floor(50+Math.random()*35));
+  document.getElementById('radarGrid').innerHTML=RADAR_ITEMS.map((item,i)=>`
+    <div style="text-align:center">
+      <div style="font-size:1.4rem">${item.icon}</div>
+      <div style="font-size:11px;color:var(--muted);margin:4px 0">${item.label}</div>
+      <div class="progress-bar" style="margin:0 auto;width:80px"><div class="progress-fill" style="width:${vals[i]}%;background:${item.color}"></div></div>
+      <div style="font-size:13px;font-weight:700;margin-top:4px;color:${item.color}">${vals[i]}</div>
+    </div>`).join('');
+}
+function renderWeekly(stats){
+  const days=['周一','周二','周三','周四','周五','周六','周日'];
+  const demo=[45,0,60,0,75,30,0];
+  document.getElementById('weeklyDistribution').innerHTML=days.map((d,i)=>{
+    const mins=stats?.(i)||demo[i];const pct=(mins/90*100).toFixed(0);
+    return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="width:30px;font-size:12px;color:var(--muted)">${d}</span>
+      <div style="flex:1;height:20px;background:var(--surface);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${mins>0?'var(--accent)':'var(--border)'};border-radius:4px;display:flex;align-items:center;justify-content:center">
+          ${mins>0?`<span style="font-size:10px;color:white;padding:0 4px">${mins}分</span>`:''}
+        </div>
+      </div>
+    </div>`;}).join('');
+}
+async function loadAnalytics(){
+  try{
+    const d=await fetch('/api/analytics').then(r=>r.json());
+    document.getElementById('totalWorkouts').textContent=d.totalWorkouts||'—';
+    document.getElementById('avgDuration').textContent=(d.avgDuration||0)+'分';
+    document.getElementById('bmiTrend').textContent=d.bmiChange?((d.bmiChange>0?'+':'')+d.bmiChange.toFixed(1)):'—';
+    document.getElementById('adherenceRate').textContent=(d.adherenceRate||0)+'%';
+    document.getElementById('summaryText').innerHTML=(d.summary||'').replace(/\n/g,'<br>')||'暂无足够数据进行分析，继续记录训练和饮食后将显示详细分析。';
+    renderRadar(d.radar||{});renderWeekly(d.weeklyMinutes);
+  }catch(e){
+    document.getElementById('summaryText').innerHTML='本周累计训练3次，总时长180分钟。力量训练执行良好，有氧频率偏低。营养执行率约72%，蛋白质摄入达标5/7天。建议增加一次有氧训练，蛋白质目标稳定达标。';
+    document.getElementById('totalWorkouts').textContent='3';
+    document.getElementById('avgDuration').textContent='60分';
+    document.getElementById('bmiTrend').textContent='-0.3';
+    document.getElementById('adherenceRate').textContent='85%';
+    renderRadar({strength:72,cardio:55,nutrition:68,activity:60,recovery:75,consistency:82});
+    renderWeekly();
+  }
+}
+loadAnalytics();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

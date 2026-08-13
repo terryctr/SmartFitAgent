@@ -1,0 +1,3 @@
+package com.smartfitagent.agent;
+import com.smartfitagent.StudyService; import com.smartfitagent.ai.AiClient; import com.smartfitagent.model.UserProfile;
+public class WritingAgent extends AbstractAgent { private final StudyService service; public WritingAgent(AiClient ai,StudyService s){super(ai);service=s;} protected String type(){return "nutrition";} protected String systemPrompt(UserProfile u){return new PromptBuilder().identity("AI营养助手，负责热量、蛋白质、碳水、脂肪和饮水建议").user(u).context("饮食记录",service.notes().toString()).rule("根据目标BMI和训练量给出每日热量、三大营养素和一日饮食模板").build();} protected String nextActions(){return "保存饮食模板；设置蛋白质目标；记录每日摄入";} protected String usedContext(){return "身体数据、饮食记录、目标BMI";} }

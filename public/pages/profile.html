@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>个人档案 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="profile">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>👤 个人档案</h1><p class="subtitle">管理你的健身目标与身体数据</p></div>
+  </div>
+
+  <div class="grid cols2" style="align-items:start">
+    <div class="card">
+      <div class="card-header"><span class="card-title">基本信息</span></div>
+      <div class="form-group" style="margin-bottom:12px"><label>姓名</label><input id="name" placeholder="你的名字"></div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>身高 (cm)</label><input id="heightCm" type="number" min="100" max="230" placeholder="175"></div>
+        <div class="form-group"><label>体重 (kg)</label><input id="weightKg" type="number" min="30" max="250" step=".1" placeholder="70.0"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>期望身材</label>
+        <select id="bodyType"><option>偏瘦</option><option>匀称</option><option>强壮</option></select>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>训练模式</label>
+        <select id="mode">
+          <option>减脂与力量并行</option><option>只做减脂训练</option>
+          <option>只做力量训练</option><option>先减脂后增肌</option><option>先增肌后减脂</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:16px"><label>身体限制 / 伤病史</label><input id="limits" placeholder="如：膝盖不适，每周能练4天"></div>
+      <button class="btn-primary" onclick="saveProfile()" style="width:100%">保存档案</button>
+      <div id="saveMsg" style="display:none;margin-top:10px;font-size:12px;color:var(--green)"></div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px" id="profileSummary">
+        <div class="card-header"><span class="card-title">当前档案</span></div>
+        <div style="color:var(--muted);font-size:13px">加载中...</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">BMI 参考</span></div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8">
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--blue)">偏瘦</span><span>&lt; 18.5</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--green)">正常</span><span>18.5 – 23.9</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--yellow)">超重</span><span>24.0 – 27.9</span></div>
+          <div style="display:flex;justify-content:space-between"><span style="color:var(--red)">肥胖</span><span>≥ 28.0</span></div>
+          <hr class="divider">
+          <div id="bmiCalc">填写身高体重后自动计算当前BMI</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+async function loadProfile(){
+  try{
+    const d=await fetch('/api/user').then(r=>r.json());
+    if(d&&d.name){
+      document.getElementById('name').value=d.name||'';
+      document.getElementById('heightCm').value=d.heightCm||'';
+      document.getElementById('weightKg').value=d.weightKg||'';
+      if(d.preferredStyle)document.getElementById('bodyType').value=d.preferredStyle;
+      document.getElementById('limits').value=d.weakness||'';
+      renderSummary(d);
+    }
+  }catch(e){}
+}
+function renderSummary(d){
+  const h=parseFloat(d.heightCm||170),w=parseFloat(d.weightKg||70);
+  const bmiVal=(w/((h/100)**2)).toFixed(1);
+  const bmiNum=parseFloat(bmiVal);
+  const bmiColor=bmiNum<18.5?'var(--blue)':bmiNum<24?'var(--green)':bmiNum<28?'var(--yellow)':'var(--red)';
+  document.getElementById('profileSummary').innerHTML=`
+    <div class="card-header"><span class="card-title">当前档案</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><div style="font-size:22px;font-weight:800">${d.heightCm||'—'}<span style="font-size:12px;font-weight:400"> cm</span></div><div style="font-size:11px;color:var(--muted)">身高</div></div>
+      <div><div style="font-size:22px;font-weight:800">${d.weightKg||'—'}<span style="font-size:12px;font-weight:400"> kg</span></div><div style="font-size:11px;color:var(--muted)">体重</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:${bmiColor}">${bmiVal}</div><div style="font-size:11px;color:var(--muted)">当前 BMI</div></div>
+      <div><div style="font-size:15px;font-weight:600">${d.goal||d.preferredStyle||'—'}</div><div style="font-size:11px;color:var(--muted)">目标</div></div>
+    </div>
+    ${d.weakness?`<div style="margin-top:12px;font-size:12px;color:var(--muted)">限制：${d.weakness}</div>`:''}`;
+  document.getElementById('bmiCalc').innerHTML=`当前 BMI：<strong style="color:${bmiColor}">${bmiVal}</strong>（${bmiNum<18.5?'偏瘦':bmiNum<24?'正常':bmiNum<28?'超重':'肥胖'}）<br>理想体重：${Math.round(18.5*(h/100)**2)} – ${Math.round(23.9*(h/100)**2)} kg`;
+}
+async function saveProfile(){
+  const h=document.getElementById('heightCm').value;
+  const w=document.getElementById('weightKg').value;
+  if(!h||!w){alert('请填写身高和体重');return;}
+  try{
+    await fetch('/api/user',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('name').value,heightCm:h,weightKg:w,bodyType:document.getElementById('bodyType').value,mode:document.getElementById('mode').value,limits:document.getElementById('limits').value})});
+    const msg=document.getElementById('saveMsg');msg.textContent='✅ 档案已保存！';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);loadProfile();
+  }catch(e){alert('保存失败: '+e.message);}
+}
+loadProfile();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 教练 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="tutor">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🤖 AI 教练</h1><p class="subtitle">基于你的档案实时生成个性化健身建议</p></div>
+  </div>
+
+  <div class="grid cols2" style="align-items:start">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">选择教练类型</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button class="btn-secondary btn-sm active-pill" data-type="fitness" onclick="selectAgent(this)">🏋️ 综合健身</button>
+          <button class="btn-secondary btn-sm" data-type="planner" onclick="selectAgent(this)">📅 训练计划师</button>
+          <button class="btn-secondary btn-sm" data-type="nutrition" onclick="selectAgent(this)">🥗 营养饮食</button>
+          <button class="btn-secondary btn-sm" data-type="recovery" onclick="selectAgent(this)">😴 恢复专家</button>
+          <button class="btn-secondary btn-sm" data-type="health" onclick="selectAgent(this)">❤️ 健康顾问</button>
+          <button class="btn-secondary btn-sm" data-type="mindset" onclick="selectAgent(this)">🧠 心态教练</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">快捷提问</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button class="btn-secondary btn-sm" onclick="quickAsk('根据我的BMI制定减脂计划')">制定减脂计划</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('今天适合练什么部位？')">今日训练建议</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('如何提升卧推重量？')">提升卧推</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('减脂期如何保证蛋白质摄入？')">蛋白质摄入</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('训练后肌肉酸痛怎么处理？')">肌肉酸痛</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('每周训练几天最合适？')">训练频率</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('如何突破训练平台期？')">突破平台期</button>
+          <button class="btn-secondary btn-sm" onclick="quickAsk('深蹲的标准动作要点是什么？')">深蹲要点</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div><span class="card-title" id="chatTitle">综合健身 AI 教练</span><div style="font-size:11px;color:var(--muted);margin-top:2px" id="chatSub">综合健身指导，BMI分析，训练+饮食建议</div></div>
+        <button class="btn-secondary btn-sm" onclick="clearChat()">清空</button>
+      </div>
+      <div class="messages" id="chatBox" style="height:380px">
+        <div class="msg ai">告诉我你的目标，例如：三个月把BMI降到22.5，同时提升卧推和深蹲。</div>
+      </div>
+      <div class="chat-input-row">
+        <input id="chatInput" placeholder="如：我想减脂但不想掉肌肉，每周能练4天..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}">
+        <button class="btn-primary" onclick="sendMsg()">发送</button>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+let currentAgent='fitness';
+const STORE_KEY='sfa_tutor_history';
+const agentInfo={
+  fitness:{name:'综合健身 AI 教练',sub:'综合健身指导，BMI分析，训练+饮食建议'},
+  planner:{name:'训练计划师',sub:'制定个性化周训练课表，渐进超负荷规划'},
+  nutrition:{name:'营养饮食师',sub:'宏营养素计算，增肌/减脂饮食方案'},
+  recovery:{name:'恢复专家',sub:'DOMS管理，睡眠优化，主动恢复策略'},
+  health:{name:'健康顾问',sub:'综合健康评估，生活方式改善'},
+  mindset:{name:'心态教练',sub:'克服平台期，维持动力，建立健康习惯'},
+};
+
+function saveHistory(){
+  const box=document.getElementById('chatBox');
+  const msgs=[...box.querySelectorAll('.msg')].map(el=>({role:el.classList.contains('user')?'user':'ai',html:el.innerHTML}));
+  try{localStorage.setItem(STORE_KEY,JSON.stringify(msgs));}catch(e){}
+}
+function loadHistory(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(STORE_KEY)||'[]');
+    if(!saved.length)return;
+    const box=document.getElementById('chatBox');
+    box.innerHTML='';
+    saved.forEach(m=>{const d=document.createElement('div');d.className='msg '+m.role;d.innerHTML=m.html;box.appendChild(d);});
+    box.scrollTop=box.scrollHeight;
+  }catch(e){}
+}
+
+function selectAgent(btn){
+  document.querySelectorAll('[data-type]').forEach(p=>p.classList.remove('active-pill'));
+  btn.classList.add('active-pill');
+  currentAgent=btn.dataset.type;
+  const info=agentInfo[currentAgent]||agentInfo.fitness;
+  document.getElementById('chatTitle').textContent=info.name;
+  document.getElementById('chatSub').textContent=info.sub;
+}
+function quickAsk(msg){document.getElementById('chatInput').value=msg;sendMsg();}
+function clearChat(){document.getElementById('chatBox').innerHTML='';localStorage.removeItem(STORE_KEY);}
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+async function sendMsg(){
+  const input=document.getElementById('chatInput');
+  const msg=input.value.trim();if(!msg)return;
+  input.value='';
+  const box=document.getElementById('chatBox');
+  box.insertAdjacentHTML('beforeend',`<div class="msg user">${esc(msg)}</div>`);
+  box.insertAdjacentHTML('beforeend','<div class="msg ai" id="typing">思考中...</div>');
+  box.scrollTop=box.scrollHeight;
+  try{
+    const r=await fetch('/api/agent/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:currentAgent,message:msg})}).then(r=>r.json());
+    document.getElementById('typing')?.remove();
+    const answer=r.answer||r.error||'抱歉，暂时无法回答';
+    box.insertAdjacentHTML('beforeend',`<div class="msg ai">${esc(answer).replaceAll('\n','<br>')}</div>`);
+  }catch(e){
+    document.getElementById('typing')?.remove();
+    box.insertAdjacentHTML('beforeend','<div class="msg ai" style="color:var(--red)">请求失败，请检查网络连接</div>');
+  }
+  box.scrollTop=box.scrollHeight;
+  saveHistory();
+}
+loadHistory();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+package com.smartfitagent.agent;
+import com.smartfitagent.StudyService; import com.smartfitagent.ai.AiClient; import com.smartfitagent.model.UserProfile;
+public class PlannerAgent extends AbstractAgent { private final StudyService service; public PlannerAgent(AiClient ai,StudyService s){super(ai);service=s;} protected String type(){return "planner";} protected String systemPrompt(UserProfile u){return new PromptBuilder().identity("训练计划Agent，负责把减脂和力量训练排进一周日程").user(u).context("训练画像",service.analyticsJson()).rule("输出周计划时包含训练日、训练类型、组数、分钟数、心率区间和恢复日").build();} protected String nextActions(){return "写入本周计划；设置训练计时；安排恢复日";} protected String usedContext(){return "BMI、目标BMI、训练偏好、训练记录";} }

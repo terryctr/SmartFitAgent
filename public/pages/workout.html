@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练日志 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.badge-strength{background:rgba(245,158,11,.15);color:#f59e0b}
+.badge-cardio{background:rgba(16,185,129,.15);color:#10b981}
+.calorie-badge{background:rgba(99,102,241,.15);color:#6366f1}
+.rec-box pre{white-space:pre-wrap;font-family:inherit;color:var(--muted);font-size:13px;line-height:1.6}
+</style>
+</head>
+<body data-page="workout">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>💪 训练日志</h1><p class="subtitle">记录每次训练，追踪力量进步</p></div>
+    <div class="header-actions">
+      <button class="btn-secondary btn-sm" onclick="loadLogs()">刷新</button>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-val" id="totalSessions">—</div><div class="stat-label">总训练次数</div></div>
+    <div class="stat-card blue"><div class="stat-val" id="totalMinutes">—</div><div class="stat-label">总训练分钟</div></div>
+    <div class="stat-card green"><div class="stat-val" id="totalCalories">—</div><div class="stat-label">总消耗热量</div></div>
+    <div class="stat-card purple"><div class="stat-val" id="streakDays">—</div><div class="stat-label">连续打卡天</div></div>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">记录本次训练</span></div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>训练类型</label>
+          <select id="workoutType"><option>力量训练</option><option>有氧运动</option><option>瑜伽/拉伸</option><option>HIIT</option><option>跑步</option><option>骑车</option><option>游泳</option></select>
+        </div>
+        <div class="form-group"><label>动作名称</label><input id="exerciseName" placeholder="如：深蹲、卧推"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>组数</label><input type="number" id="sets" value="3" min="1" max="20"></div>
+        <div class="form-group"><label>每组次数</label><input type="number" id="reps" value="10" min="1" max="100"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>重量 (kg)</label><input type="number" id="weightKg" value="0" min="0" step="0.5"></div>
+        <div class="form-group"><label>时长 (分钟)</label><input type="number" id="durationMinutes" value="45" min="1"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px"><label>备注</label><input id="logNotes" placeholder="今日感受..."></div>
+      <button class="btn-primary" onclick="saveLog()" style="width:100%">保存训练记录</button>
+      <div id="saveMsg" style="margin-top:8px;font-size:12px;color:var(--green);display:none"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">今日推荐训练</span><button class="btn-secondary btn-sm" onclick="loadRecommendation()">重新推荐</button></div>
+      <pre id="recText" style="color:var(--muted);font-size:13px;line-height:1.65;white-space:pre-wrap;font-family:inherit">加载推荐中...</pre>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">训练记录</span></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>日期</th><th>动作</th><th>类型</th><th>组×次</th><th>重量</th><th>时长</th><th>热量</th><th>备注</th></tr></thead>
+        <tbody id="logTableBody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">加载中...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+async function loadStats(){
+  try{const d=await fetch('/api/workout/stats').then(r=>r.json());
+    document.getElementById('totalSessions').textContent=d.totalSessions||0;
+    document.getElementById('totalMinutes').textContent=d.totalMinutes||0;
+    document.getElementById('totalCalories').textContent=d.totalCalories||0;
+    document.getElementById('streakDays').textContent=(d.streakDays||0)+'天';
+  }catch(e){}
+}
+async function loadLogs(){
+  try{const logs=await fetch('/api/workout/logs').then(r=>r.json());
+    const tbody=document.getElementById('logTableBody');
+    if(!logs.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">暂无训练记录，开始第一次训练吧！</td></tr>';return;}
+    tbody.innerHTML=logs.map(l=>`<tr>
+      <td>${l.workout_date||l.workoutDate||'—'}</td>
+      <td><strong>${l.exercise_name||l.exerciseName||'—'}</strong></td>
+      <td><span class="badge badge-orange">${l.workout_type||l.workoutType||'—'}</span></td>
+      <td>${l.sets||0}×${l.reps||0}</td>
+      <td>${l.weight_kg||l.weightKg||0} kg</td>
+      <td>${l.duration_minutes||l.durationMinutes||0} 分</td>
+      <td><span class="badge badge-blue">${l.calories_burned||l.caloriesBurned||0} kcal</span></td>
+      <td style="color:var(--muted)">${l.notes||''}</td>
+    </tr>`).join('');
+  }catch(e){document.getElementById('logTableBody').innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted)">加载失败，请刷新重试</td></tr>';}
+}
+async function loadRecommendation(){
+  document.getElementById('recText').textContent='生成推荐中...';
+  try{const d=await fetch('/api/workout/recommend').then(r=>r.json());
+    document.getElementById('recText').textContent=d.recommendation||'暂无推荐';
+  }catch(e){document.getElementById('recText').textContent='今日推荐：\n• 深蹲 4×8  (80% 1RM)\n• 罗马尼亚硬拉 3×10\n• 腿举 3×12\n• 小腿提踵 4×15\n\n组间休息 90-120 秒，重点感受目标肌肉收缩。';}
+}
+async function saveLog(){
+  const body={workoutType:document.getElementById('workoutType').value,exerciseName:document.getElementById('exerciseName').value||'深蹲',sets:parseInt(document.getElementById('sets').value),reps:parseInt(document.getElementById('reps').value),weightKg:parseFloat(document.getElementById('weightKg').value),durationMinutes:parseInt(document.getElementById('durationMinutes').value),notes:document.getElementById('logNotes').value,date:new Date().toISOString().split('T')[0]};
+  try{const d=await fetch('/api/workout/logs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+    const msg=document.getElementById('saveMsg');msg.textContent=`✅ 已记录！消耗 ${d.caloriesBurned||0} kcal`;msg.style.display='block';
+    setTimeout(()=>msg.style.display='none',3000);loadLogs();loadStats();
+  }catch(e){alert('保存失败: '+e.message);}
+}
+loadStats();loadLogs();loadRecommendation();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

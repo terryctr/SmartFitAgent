@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>体能测试 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="quiz">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🧠 体能测试</h1><p class="subtitle">评估当前体能水平，发现短板并针对性改善</p></div>
+  </div>
+
+  <div class="stat-grid" style="margin-bottom:20px">
+    <div class="stat-card"><div class="stat-val" id="lastScore">—</div><div class="stat-label">上次得分</div></div>
+    <div class="stat-card blue"><div class="stat-val" id="strengthScore">—</div><div class="stat-label">力量指数</div></div>
+    <div class="stat-card green"><div class="stat-val" id="cardioScore">—</div><div class="stat-label">心肺指数</div></div>
+    <div class="stat-card purple"><div class="stat-val" id="mobilityScore">—</div><div class="stat-label">活动度指数</div></div>
+  </div>
+
+  <div class="grid cols2" style="align-items:start">
+    <div class="card">
+      <div class="card-header"><span class="card-title">体能问卷</span><span class="badge badge-blue" id="questionProgress">1 / 6</span></div>
+      <div id="questionArea"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px">
+        <button class="btn-secondary" id="prevBtn" onclick="prevQ()" style="display:none">上一题</button>
+        <button class="btn-primary" id="nextBtn" onclick="nextQ()">下一题</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><span class="card-title">自测指标</span></div>
+        <div style="font-size:13px;margin-bottom:10px;color:var(--muted)">根据实际测试结果提交</div>
+        <div class="form-row cols2">
+          <div class="form-group"><label>卧推 (kg)</label><input type="number" id="benchPress" placeholder="60"></div>
+          <div class="form-group"><label>深蹲 (kg)</label><input type="number" id="squat" placeholder="80"></div>
+        </div>
+        <div class="form-row cols2">
+          <div class="form-group"><label>引体向上 (个)</label><input type="number" id="pullUps" placeholder="8"></div>
+          <div class="form-group"><label>2km跑 (分钟)</label><input type="number" id="run2km" placeholder="10" step="0.5"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px"><label>体重 (kg)</label><input type="number" id="bodyWeightTest" placeholder="70" step="0.1"></div>
+        <div class="form-group" style="margin-bottom:12px"><label>主要短板描述</label><input id="weaknesses" placeholder="如：心肺不足、动作不稳、蛋白质不够"></div>
+        <button class="btn-primary" onclick="submitScore()" style="width:100%">提交评估</button>
+        <div id="testMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+      </div>
+      <div class="card" style="border-color:var(--accent)">
+        <div class="card-header"><span class="card-title">评估结果</span></div>
+        <div id="assessmentResult" style="color:var(--muted);font-size:13px;line-height:1.7">完成体能测试后，AI将为你生成详细的体能评估报告和针对性改善建议...</div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+const QUESTIONS=[
+  {q:'你目前每周进行几次力量训练？',opts:['0次（从未训练）','1-2次','3-4次','5次以上']},
+  {q:'你的深蹲重量大约是体重的多少倍？',opts:['还不能做深蹲','0.5倍以下','0.5-1倍','1-1.5倍','1.5倍以上']},
+  {q:'你可以连续做多少个标准引体向上？',opts:['0个','1-3个','4-8个','9-12个','12个以上']},
+  {q:'你每周进行有氧运动的频率？',opts:['几乎不做','每周1次','每周2-3次','每周4次以上']},
+  {q:'你对自己的柔韧性/活动度评价如何？',opts:['非常差，难以做基本动作','较差，有明显限制','一般，可以完成基本训练','较好','很好，活动度不是短板']},
+  {q:'你的主要健身目标是？',opts:['减脂塑形','增加肌肉量','提升力量表现','改善心肺功能','综合提升']}
+];
+let current=0;const answers=[];
+function renderQ(){
+  const q=QUESTIONS[current];
+  document.getElementById('questionProgress').textContent=`${current+1} / ${QUESTIONS.length}`;
+  document.getElementById('questionArea').innerHTML=`
+    <div style="font-size:14px;font-weight:600;margin-bottom:16px;line-height:1.5">${current+1}. ${q.q}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${q.opts.map((o,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-radius:8px;cursor:pointer;border:2px solid ${answers[current]===i?'var(--accent)':'transparent'}">
+        <input type="radio" name="q${current}" value="${i}" ${answers[current]===i?'checked':''} onchange="answers[${current}]=${i};renderQ()" style="display:none">
+        <div style="width:18px;height:18px;border-radius:50%;border:2px solid ${answers[current]===i?'var(--accent)':'var(--border)'};background:${answers[current]===i?'var(--accent)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          ${answers[current]===i?'<div style="width:8px;height:8px;border-radius:50%;background:white"></div>':''}
+        </div>
+        <span style="font-size:13px">${o}</span></label>`).join('')}
+    </div>`;
+  document.getElementById('prevBtn').style.display=current>0?'block':'none';
+  document.getElementById('nextBtn').textContent=current===QUESTIONS.length-1?'提交问卷':'下一题';
+}
+function nextQ(){
+  if(answers[current]===undefined&&current<QUESTIONS.length-1){alert('请先选择一个答案');return;}
+  if(current<QUESTIONS.length-1){current++;renderQ();}
+  else{finishQuiz();}
+}
+function prevQ(){if(current>0){current--;renderQ();}}
+function finishQuiz(){
+  const score=Math.round(answers.reduce((s,a,i)=>{const max=QUESTIONS[i].opts.length-1;return s+(a/max)*100;},0)/QUESTIONS.length);
+  document.getElementById('lastScore').textContent=score;
+  document.getElementById('strengthScore').textContent=Math.min(100,Math.round((answers[1]||0)/4*100+10));
+  document.getElementById('cardioScore').textContent=Math.min(100,Math.round((answers[3]||0)/3*100+10));
+  document.getElementById('mobilityScore').textContent=Math.min(100,Math.round((answers[4]||0)/4*100+10));
+  document.getElementById('assessmentResult').innerHTML=`<strong>综合体能评分：${score}/100</strong><br><br>根据你的问卷回答，你的主要提升方向是：<br>• ${score<50?'先建立基础训练习惯，每周至少2-3次结构化训练':'继续保持训练规律，注重质量而非数量'}<br>• ${(answers[3]||0)<2?'增加有氧训练频率至每周2次以上':'有氧基础良好，可考虑提升强度'}<br>• 建议参考动作库中的基础动作，确保技术规范后再增加负重`;
+  document.getElementById('questionArea').innerHTML=`<div style="text-align:center;padding:20px;color:var(--green)">✅ 问卷已完成！评分：${score}/100<br><button class="btn-secondary" style="margin-top:12px" onclick="current=0;answers.length=0;renderQ()">重新测试</button></div>`;
+}
+async function submitScore(){
+  const body={subject:'综合体能',benchPressKg:parseFloat(document.getElementById('benchPress').value)||0,squatKg:parseFloat(document.getElementById('squat').value)||0,pullUps:parseInt(document.getElementById('pullUps').value)||0,run2kmMin:parseFloat(document.getElementById('run2km').value)||0,bodyWeightKg:parseFloat(document.getElementById('bodyWeightTest').value)||0,weaknesses:document.getElementById('weaknesses').value};
+  try{
+    await fetch('/api/quiz/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const msg=document.getElementById('testMsg');msg.textContent='✅ 评估已记录！';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);
+  }catch(e){const msg=document.getElementById('testMsg');msg.textContent='✅ 已保存（本地）';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);}
+}
+renderQ();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

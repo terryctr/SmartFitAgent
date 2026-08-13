@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>社区 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.feed-card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
+.avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0}
+.post-tag{padding:2px 8px;border-radius:20px;font-size:11px;background:rgba(99,102,241,.1);color:var(--accent)}
+.post-action{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;transition:all .2s}
+.post-action:hover{color:var(--accent);background:rgba(249,115,22,.08)}
+.post-action.liked{color:#ef4444}
+.tag-btn{padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px;transition:all .2s}
+.tag-btn.selected{background:var(--accent);color:white;border-color:var(--accent)}
+</style>
+</head>
+<body data-page="community">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🌐 健身社区</h1><p class="subtitle">分享训练心得，互相激励，共同进步</p></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="avatar" style="background:var(--accent)">我</div>
+          <span style="color:var(--muted);font-size:13px">分享你的训练心得...</span>
+        </div>
+        <textarea id="postContent" style="width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px;font-size:13px;font-family:inherit;resize:vertical;margin-bottom:10px" placeholder="今天完成了什么训练？有什么突破？分享给大家！"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="tagSelector">
+            <button class="tag-btn" onclick="toggleTag(this,'力量训练')">💪 力量</button>
+            <button class="tag-btn" onclick="toggleTag(this,'有氧')">🏃 有氧</button>
+            <button class="tag-btn" onclick="toggleTag(this,'减脂')">🔥 减脂</button>
+            <button class="tag-btn" onclick="toggleTag(this,'增肌')">📈 增肌</button>
+            <button class="tag-btn" onclick="toggleTag(this,'营养')">🥗 营养</button>
+            <button class="tag-btn" onclick="toggleTag(this,'打卡')">✅ 打卡</button>
+          </div>
+          <button class="btn-primary" onclick="publishPost()">🚀 发布</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn-secondary btn-sm active-pill" onclick="filterFeed('all',this)">全部</button>
+        <button class="btn-secondary btn-sm" onclick="filterFeed('打卡',this)">✅ 打卡</button>
+        <button class="btn-secondary btn-sm" onclick="filterFeed('力量训练',this)">💪 力量</button>
+        <button class="btn-secondary btn-sm" onclick="filterFeed('减脂',this)">🔥 减脂</button>
+        <button class="btn-secondary btn-sm" onclick="filterFeed('营养',this)">🥗 营养</button>
+      </div>
+
+      <div id="postsFeed"><div style="text-align:center;color:var(--muted);padding:30px;font-size:13px">加载中...</div></div>
+    </div>
+
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span class="card-title">🏆 本周打卡榜</span></div>
+        <div id="leaderboard"></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-header"><span class="card-title">🔥 热门话题</span></div>
+        <div id="trending"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🟢 在线成员</span></div>
+        <div id="onlineMembers"></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+let selectedTags=[],currentFilter='all',posts=[];
+const DEMO_POSTS=[
+  {id:1,author:'健身达人小明',avatar:'明',time:'2小时前',content:'今天完成了卧推新PR！120kg × 5次！三年努力终于有成效了 💪 感谢AI教练的训练计划，周期性超负荷真的有效！',tags:['力量训练','增肌'],likes:24,comments:8,liked:false},
+  {id:2,author:'跑步爱好者小红',avatar:'红',time:'4小时前',content:'5公里配速 4:35，今天的晨跑超棒！天气凉快，状态极佳🏃‍♀️ 连续打卡第21天，向30天目标冲刺！',tags:['有氧','打卡'],likes:18,comments:5,liked:false},
+  {id:3,author:'减脂战士小华',avatar:'华',time:'昨天',content:'本周营养计划执行：蛋白质达标5/7天，热量控制达标4/7天。体重本周降了0.6kg 📉 比上周有进步！',tags:['减脂','营养'],likes:31,comments:12,liked:false},
+  {id:4,author:'新手小张',avatar:'张',time:'昨天',content:'第一次完成完整的深蹲训练！腿超级酸😅 但很有成就感！使用AI推荐的动作组合，感觉比自己乱练有效多了。',tags:['力量训练','打卡'],likes:15,comments:7,liked:false},
+];
+const LEADERBOARD=[{name:'健身达人小明',count:7,pts:350,av:'明'},{name:'跑步爱好者小红',count:6,pts:300,av:'红'},{name:'马拉松备赛李梅',count:6,pts:290,av:'梅'},{name:'减脂战士小华',count:5,pts:250,av:'华'}];
+const TRENDING=['💪 新人第一个月大变身','🔥 45天减脂挑战收官','🥗 高蛋白早餐食谱分享','📈 突破平台期的3个方法'];
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));}
+function renderPosts(data){
+  const feed=document.getElementById('postsFeed');
+  if(!data.length){feed.innerHTML='<div style="text-align:center;color:var(--muted);padding:30px">暂无帖子，来发第一条吧！</div>';return;}
+  feed.innerHTML=data.map(p=>`
+    <div class="feed-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="avatar" style="background:hsl(${p.author.charCodeAt(0)*30},60%,40%)">${p.avatar}</div>
+        <div><div style="font-weight:600;font-size:14px">${esc(p.author)}</div><div style="font-size:11px;color:var(--muted)">${p.time}</div></div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;margin-bottom:10px">${esc(p.content)}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${p.tags.map(t=>`<span class="post-tag">#${t}</span>`).join('')}</div>
+      <div style="display:flex;gap:4px">
+        <button class="post-action ${p.liked?'liked':''}" onclick="toggleLike(${p.id},this)">${p.liked?'❤️':'🤍'} <span>${p.likes}</span></button>
+        <button class="post-action">💬 <span>${p.comments}</span></button>
+        <button class="post-action">🔗 分享</button>
+      </div>
+    </div>`).join('');
+}
+function renderLeaderboard(){
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('leaderboard').innerHTML=LEADERBOARD.map((m,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:16px;width:20px">${i<3?medals[i]:'#'+(i+1)}</span>
+      <div class="avatar" style="width:28px;height:28px;font-size:11px;background:hsl(${m.name.charCodeAt(0)*30},60%,40%)">${m.av}</div>
+      <div style="flex:1;font-size:12px">${m.name}</div>
+      <div style="color:#f59e0b;font-weight:700;font-size:12px">${m.pts}分</div>
+    </div>`).join('');
+}
+function renderTrending(){
+  document.getElementById('trending').innerHTML=TRENDING.map((t,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="color:var(--muted);width:14px">${i+1}</span><span style="flex:1">${t}</span>
+    </div>`).join('');
+}
+function renderOnline(){
+  const members=['小明','小红','小华','小张','李梅','王强','刘芳'];
+  document.getElementById('onlineMembers').innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px">${members.map(m=>`<div style="display:flex;align-items:center;gap:4px;font-size:12px"><span style="width:7px;height:7px;border-radius:50%;background:#10b981;display:inline-block"></span>${m}</div>`).join('')}</div><div style="margin-top:8px;font-size:11px;color:var(--muted)">${members.length} 人在线</div>`;
+}
+function toggleLike(id,btn){
+  const p=posts.find(x=>x.id===id);if(!p)return;
+  p.liked=!p.liked;p.likes+=p.liked?1:-1;
+  btn.className='post-action '+(p.liked?'liked':'');
+  btn.innerHTML=(p.liked?'❤️':'🤍')+` <span>${p.likes}</span>`;
+}
+function toggleTag(btn,tag){
+  btn.classList.toggle('selected');
+  selectedTags=btn.classList.contains('selected')?[...selectedTags,tag]:selectedTags.filter(t=>t!==tag);
+}
+function filterFeed(filter,btn){
+  currentFilter=filter;
+  document.querySelectorAll('[onclick^="filterFeed"]').forEach(b=>b.classList.remove('active-pill'));
+  btn.classList.add('active-pill');
+  renderPosts(filter==='all'?posts:posts.filter(p=>p.tags.includes(filter)));
+}
+function publishPost(){
+  const content=document.getElementById('postContent').value.trim();if(!content){alert('请输入内容');return;}
+  posts.unshift({id:Date.now(),author:'我',avatar:'我',time:'刚刚',content,tags:[...selectedTags],likes:0,comments:0,liked:false});
+  document.getElementById('postContent').value='';selectedTags=[];
+  document.querySelectorAll('.tag-btn').forEach(b=>b.classList.remove('selected'));
+  renderPosts(currentFilter==='all'?posts:posts.filter(p=>p.tags.includes(currentFilter)));
+}
+posts=[...DEMO_POSTS];renderPosts(posts);renderLeaderboard();renderTrending();renderOnline();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

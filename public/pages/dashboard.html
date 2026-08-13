@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>训练总览 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.profile-form{display:grid;gap:12px;max-width:480px}
+.bmi-bar-wrap{height:16px;background:var(--border);border-radius:999px;position:relative;overflow:visible;margin:12px 0}
+.bmi-bar-track{height:100%;border-radius:999px;background:linear-gradient(to right,#3b82f6,#10b981,#f59e0b,#ef4444);opacity:.6}
+.bmi-needle{position:absolute;top:-4px;width:4px;height:24px;background:var(--text);border-radius:2px;transform:translateX(-50%);transition:left .6s}
+.plan-item{padding:12px;background:var(--surface);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)}
+.plan-item h4{font-size:13px;margin-bottom:3px}
+.plan-item p{font-size:12px;color:var(--muted)}
+.rec-item{padding:10px 0;border-bottom:1px solid var(--border)}
+.rec-item:last-child{border-bottom:none}
+.rec-item strong{font-size:13px}
+.rec-item p{font-size:12px;color:var(--muted);margin-top:2px}
+.feature-hub{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:20px}
+.hub-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;transition:all .2s;cursor:pointer}
+.hub-card:hover{border-color:var(--accent);background:var(--card-hover);transform:translateY(-2px)}
+.hub-card .hc-icon{font-size:1.6rem;margin-bottom:6px}
+.hub-card strong{font-size:13px;display:block;margin-bottom:3px}
+.hub-card span{font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body data-page="dashboard">
+<main class="main-content">
+<div id="app"></div>
+</main>
+<script>
+const api={get:u=>fetch(u).then(r=>r.json()),post:(u,b)=>fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(r=>r.json())};
+
+function bmi(h,w){const m=h/100;return (w/(m*m)).toFixed(1);}
+
+function renderSetup(){
+  document.getElementById('app').innerHTML=`
+    <div class="page-header"><div><h1>欢迎使用 SmartFitAgent</h1><p class="subtitle">请先建立个人健身档案，系统将为你生成专属方案</p></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+      <div class="card">
+        <div class="card-header"><span class="card-title">建立健身档案</span></div>
+        <div class="profile-form">
+          <div class="form-group"><label>姓名（可选）</label><input id="name" placeholder="你的名字"></div>
+          <div class="form-row cols2">
+            <div class="form-group"><label>当前身高 cm *</label><input id="heightCm" type="number" min="100" max="230" required placeholder="175"></div>
+            <div class="form-group"><label>当前体重 kg *</label><input id="weightKg" type="number" min="30" max="250" step=".1" required placeholder="70.0"></div>
+          </div>
+          <div class="form-group"><label>期望身材</label>
+            <select id="bodyType"><option>偏瘦</option><option selected>匀称</option><option>强壮</option></select>
+          </div>
+          <div class="form-group"><label>训练模式</label>
+            <select id="mode"><option>减脂与力量并行</option><option>只做减脂训练</option><option>只做力量训练</option><option>先减脂后增肌</option><option>先增肌后减脂</option></select>
+          </div>
+          <div class="form-group"><label>身体限制 / 伤病史（可选）</label><input id="limits" placeholder="如：膝盖不适，每周能练4天"></div>
+          <button class="btn-primary" onclick="saveProfile()" style="width:100%">保存档案并生成方案</button>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header"><span class="card-title">功能一览</span></div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:12px">建档后即可解锁全部功能</p>
+          ${[['💪','训练日志','记录每次力量/有氧训练'],['🥗','营养追踪','膳食热量与宏营养素记录'],['📏','身体数据','体重、体脂、围度变化追踪'],['🤖','AI 教练','针对你的数据实时给出建议'],['📈','数据分析','训练量、饮食执行可视化'],['🏆','挑战赛','30天打卡挑战，游戏化激励']].map(([ic,n,d])=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:1.3rem">${ic}</span><div><strong style="font-size:13px">${n}</strong><p style="font-size:11px;color:var(--muted)">${d}</p></div></div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function saveProfile(){
+  const h=document.getElementById('heightCm').value;
+  const w=document.getElementById('weightKg').value;
+  if(!h||!w){alert('请填写身高和体重');return;}
+  await api.post('/api/user',{name:document.getElementById('name').value,heightCm:h,weightKg:w,bodyType:document.getElementById('bodyType').value,mode:document.getElementById('mode').value,limits:document.getElementById('limits').value});
+  init();
+}
+
+async function renderDashboard(d){
+  const bmiVal=bmi(d.heightCm||170,d.weightKg||70);
+  const bmiNum=parseFloat(bmiVal);
+  const bmiColor=bmiNum<18.5?'var(--blue)':bmiNum<24?'var(--green)':bmiNum<28?'var(--yellow)':'var(--red)';
+  const bmiLabel=bmiNum<18.5?'偏瘦':bmiNum<24?'正常':bmiNum<28?'超重':'肥胖';
+  const bmiPct=Math.min(95,Math.max(5,((bmiNum-15)/20)*100)).toFixed(0);
+
+  document.getElementById('app').innerHTML=`
+    <div class="page-header">
+      <div><h1>训练总览</h1><p class="subtitle">你好，${d.name||'运动员'} · ${new Date().toLocaleDateString('zh-CN')}</p></div>
+      <div class="header-actions">
+        <a href="/pages/profile.html" class="btn-secondary btn-sm">编辑档案</a>
+        <a href="/pages/tutor.html" class="btn-primary btn-sm">AI 制定计划</a>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-val">${d.heightCm||'—'}<span style="font-size:14px;font-weight:400"> cm</span></div>
+        <div class="stat-label">当前身高</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-val">${d.weightKg||'—'}<span style="font-size:14px;font-weight:400"> kg</span></div>
+        <div class="stat-label">当前体重</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-val" style="color:${bmiColor}">${bmiVal}</div>
+        <div class="stat-label">当前 BMI · ${bmiLabel}</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-val">${d.weeklyTrainingMinutes||0}<span style="font-size:14px;font-weight:400"> 分</span></div>
+        <div class="stat-label">本周训练时长</div>
+      </div>
+    </div>
+
+    <div class="grid cols2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">BMI 分析</span><span class="badge ${bmiNum<24?'badge-green':'badge-yellow'}">${bmiLabel}</span></div>
+        <div style="font-size:36px;font-weight:800;color:${bmiColor}">${bmiVal}</div>
+        <div style="font-size:12px;color:var(--muted);margin:6px 0">正常范围：18.5 – 23.9（中国标准）</div>
+        <div class="bmi-bar-wrap"><div class="bmi-bar-track"></div><div class="bmi-needle" style="left:${bmiPct}%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted)"><span>15</span><span>18.5</span><span>24</span><span>28</span><span>35</span></div>
+        <div style="margin-top:12px;font-size:13px">理想体重：<strong>${Math.round(18.5*((d.heightCm||170)/100)**2)} – ${Math.round(23.9*((d.heightCm||170)/100)**2)} kg</strong></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">期望身材：${d.expectedBody||d.preferredStyle||d.bodyType||'匀称'} · 模式：${d.trainingMode||d.preferredStyle||'减脂力量并行'}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">今日建议热量</span></div>
+        <div style="font-size:36px;font-weight:800;color:var(--accent)">${d.calorieTarget||2000}<span style="font-size:14px;font-weight:400"> kcal</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px">蛋白质目标：${d.proteinTarget||120}g · 基于 TDEE 计算</div>
+        ${[['蛋白质',d.proteinTarget||120,'g','fill-orange',60],['碳水',d.carbTarget||220,'g','fill-blue',65],['脂肪',d.fatTarget||65,'g','fill-green',55]].map(([n,v,u,c,p])=>`
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>${n}</span><span style="color:var(--muted)">${v}${u}</span></div>
+          <div class="progress-bar"><div class="progress-fill ${c}" style="width:${p}%"></div></div>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="grid cols2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">AI 重点建议</span></div>
+        <div id="recs">${(d.recommendations||[{title:'完善档案',reason:'录入更多训练和饮食数据，AI将给出更精准的建议'},{title:'开始训练',reason:'点击「训练日志」记录今天的第一次训练'},{title:'记录饮食',reason:'营养追踪帮助你控制热量缺口，加速减脂'}]).map(r=>`<div class="rec-item"><strong>${r.title}</strong><p>${r.reason}</p></div>`).join('')}</div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">本周训练计划</span></div>
+        <div id="plans">${(d.fatLossPlan||[{title:'周一 / 周四 — 力量',detail:'深蹲·卧推·硬拉 复合动作，4组×8-12次'},{title:'周二 / 周五 — 有氧',detail:'30-40分钟中强度跑步或HIIT，HR 130-155bpm'},{title:'周三 / 周六 — 辅助',detail:'核心训练 + 上肢拉伸，30分钟'},{title:'周日 — 主动恢复',detail:'散步·瑜伽·泡沫轴，促进恢复'}]).map(p=>`<div class="plan-item"><h4>${p.title}</h4><p>${p.detail}</p></div>`).join('')}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">功能入口</span></div>
+      <div class="feature-hub">
+        ${[['💪','训练日志','workout','记录每次训练'],['🥗','营养追踪','nutrition','膳食热量追踪'],['📏','身体数据','measurements','围度体重变化'],['🌙','睡眠记录','sleep','睡眠质量管理'],['🤖','AI 教练','tutor','实时训练建议'],['📅','训练计划','planner','周期化计划'],['🏆','挑战赛','challenges','30天打卡挑战'],['📈','数据分析','analytics','进步可视化'],['🧠','体能测试','quiz','评估当前水平'],['🎖️','成就','achievements','解锁里程碑'],['❤️','健康顾问','health','综合健康评估'],['🌐','社区','community','与他人分享']].map(([i,n,p,d])=>`<a href="/pages/${p}.html" class="hub-card"><div class="hc-icon">${i}</div><strong>${n}</strong><span>${d}</span></a>`).join('')}
+      </div>
+    </div>`;
+}
+
+async function init(){
+  try{
+    const d=await api.get('/api/dashboard');
+    if(!d||!d.hasProfile){renderSetup();}
+    else{renderDashboard(d);}
+  }catch(e){renderSetup();}
+}
+init();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

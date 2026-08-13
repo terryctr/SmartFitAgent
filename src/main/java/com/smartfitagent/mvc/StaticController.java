@@ -1,0 +1,3 @@
+package com.smartfitagent.mvc;
+import java.nio.file.*; import java.util.*;
+public class StaticController { private final Path root; public StaticController(Path root){this.root=root;} public Response serve(Request r) throws Exception{String p=r.path().equals("/")?"/pages/dashboard.html":r.path(); Path f=root.resolve(p.substring(1)).normalize(); if(!f.startsWith(root.normalize())||!Files.exists(f)||Files.isDirectory(f))return Response.notFound(p); return Response.bytes(Files.readAllBytes(f), type(f.toString()));} private String type(String f){ if(f.endsWith(".html"))return"text/html; charset=utf-8"; if(f.endsWith(".css"))return"text/css; charset=utf-8"; if(f.endsWith(".js"))return"application/javascript; charset=utf-8"; return"application/octet-stream";} }

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>健身课程 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="courses">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>📚 健身课程</h1><p class="subtitle">系统学习训练知识，把减脂、力量、营养和恢复拆成可管理模块</p></div>
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="filterRow">
+    <button class="btn-secondary btn-sm active-pill" onclick="filterCourses('all',this)">全部</button>
+    <button class="btn-secondary btn-sm" onclick="filterCourses('减脂训练',this)">🔥 减脂</button>
+    <button class="btn-secondary btn-sm" onclick="filterCourses('力量训练',this)">💪 力量</button>
+    <button class="btn-secondary btn-sm" onclick="filterCourses('营养饮食',this)">🥗 营养</button>
+    <button class="btn-secondary btn-sm" onclick="filterCourses('恢复训练',this)">😴 恢复</button>
+    <button class="btn-secondary btn-sm" onclick="filterCourses('动作安全',this)">⚠️ 安全</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px" id="coursesGrid">
+    <div style="color:var(--muted);text-align:center;padding:40px;grid-column:1/-1">加载课程中...</div>
+  </div>
+</main>
+<script>
+const DEMO_COURSES=[
+  {id:1,subject:'减脂训练',title:'减脂原理与热量缺口',description:'理解TDEE、热量缺口和脂肪燃烧的科学原理，制定可持续的减脂策略。',level:'入门',teacher:'营养AI',lessons:5,progress:60},
+  {id:2,subject:'减脂训练',title:'Zone2有氧与HIIT搭配',description:'掌握有氧心率区间，设计高效的有氧与间歇训练组合方案。',level:'中级',teacher:'运动AI',lessons:6,progress:0},
+  {id:3,subject:'力量训练',title:'复合动作五大基础',description:'深蹲、硬拉、卧推、划船、推举——力量训练的核心动作系统讲解。',level:'入门',teacher:'力量AI',lessons:8,progress:25},
+  {id:4,subject:'力量训练',title:'渐进超负荷与周期化',description:'如何系统性地增加训练负荷，避免平台期，实现持续力量增长。',level:'进阶',teacher:'力量AI',lessons:7,progress:0},
+  {id:5,subject:'营养饮食',title:'宏营养素计算实战',description:'蛋白质、碳水、脂肪的实际配比计算，不同目标的饮食策略。',level:'入门',teacher:'营养AI',lessons:4,progress:75},
+  {id:6,subject:'营养饮食',title:'训练前后营养时机',description:'运动前、中、后的营养补充策略，最大化训练效果和恢复速度。',level:'中级',teacher:'营养AI',lessons:5,progress:0},
+  {id:7,subject:'恢复训练',title:'主动恢复与睡眠优化',description:'泡沫轴使用、静态拉伸、睡眠环境优化，加速肌肉恢复。',level:'入门',teacher:'恢复AI',lessons:4,progress:50},
+  {id:8,subject:'动作安全',title:'常见伤病预防与处理',description:'识别训练中的高风险动作，掌握基本的自我保护和应急处理知识。',level:'入门',teacher:'健康AI',lessons:6,progress:0},
+];
+let allCourses=[];
+function renderCourses(courses){
+  const subjectColor={'减脂训练':'var(--red)','力量训练':'var(--accent)','营养饮食':'var(--green)','恢复训练':'var(--blue)','动作安全':'var(--yellow)'};
+  document.getElementById('coursesGrid').innerHTML=courses.map(c=>`
+    <div class="card" style="cursor:pointer;transition:transform .2s" onmouseenter="this.style.transform='translateY(-3px)'" onmouseleave="this.style.transform=''">
+      <div style="height:4px;background:${subjectColor[c.subject]||'var(--accent)'};border-radius:4px 4px 0 0;margin:-16px -16px 12px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+        <span class="badge badge-orange" style="font-size:11px">${c.subject}</span>
+        <span class="badge" style="background:var(--surface);color:var(--muted);font-size:11px">${c.level}</span>
+      </div>
+      <h3 style="font-size:14px;margin:0 0 6px">${c.title}</h3>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 12px;line-height:1.5">${c.description}</p>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">👤 ${c.teacher} · 📖 ${c.lessons}节</div>
+      <div class="progress-bar" style="margin-bottom:4px"><div class="progress-fill fill-orange" style="width:${c.progress}%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
+        <span>${c.progress>0?`已完成 ${c.progress}%`:'未开始'}</span>
+        <button class="btn-primary" style="padding:3px 10px;font-size:11px;margin:0" onclick="event.stopPropagation();startCourse(${c.id})">${c.progress>0?'继续':'开始'}</button>
+      </div>
+    </div>`).join('');
+}
+function filterCourses(type,btn){
+  document.querySelectorAll('#filterRow button').forEach(b=>b.classList.remove('active-pill'));
+  btn.classList.add('active-pill');
+  renderCourses(type==='all'?allCourses:allCourses.filter(c=>c.subject===type));
+}
+async function loadCourses(){
+  try{const rows=await fetch('/api/courses').then(r=>r.json());allCourses=rows.length?rows:DEMO_COURSES;renderCourses(allCourses);}
+  catch(e){allCourses=DEMO_COURSES;renderCourses(allCourses);}
+}
+function startCourse(id){const c=allCourses.find(x=>x.id===id);if(c)alert(`开始学习：${c.title}\n\n${c.description}\n\n（实际课程内容接入后显示）`);}
+loadCourses();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>身体数据 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body data-page="measurements">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>📏 身体数据</h1><p class="subtitle">记录围度变化，可视化体型进步</p></div>
+  </div>
+
+  <div class="measure-grid" id="measureCards">
+    <div class="measure-card"><div class="current" id="curWeight">—</div><div class="unit">kg</div><div class="m-label">体重</div><div class="change neutral" id="chgWeight">—</div></div>
+    <div class="measure-card"><div class="current" id="curBmi">—</div><div class="unit">BMI</div><div class="m-label">体质指数</div><div class="change neutral" id="chgBmi">—</div></div>
+    <div class="measure-card"><div class="current" id="curChest">—</div><div class="unit">cm</div><div class="m-label">胸围</div><div class="change neutral" id="chgChest">—</div></div>
+    <div class="measure-card"><div class="current" id="curWaist">—</div><div class="unit">cm</div><div class="m-label">腰围</div><div class="change neutral" id="chgWaist">—</div></div>
+    <div class="measure-card"><div class="current" id="curHip">—</div><div class="unit">cm</div><div class="m-label">臀围</div><div class="change neutral" id="chgHip">—</div></div>
+    <div class="measure-card"><div class="current" id="curArm">—</div><div class="unit">cm</div><div class="m-label">手臂围</div><div class="change neutral" id="chgArm">—</div></div>
+    <div class="measure-card"><div class="current" id="curThigh">—</div><div class="unit">cm</div><div class="m-label">大腿围</div><div class="change neutral" id="chgThigh">—</div></div>
+    <div class="measure-card"><div class="current" id="curBodyFat">—</div><div class="unit">%</div><div class="m-label">体脂率</div><div class="change neutral" id="chgBodyFat">—</div></div>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">录入今日测量</span></div>
+      <div class="form-3col" style="margin-bottom:10px">
+        <div class="form-group"><label>体重 (kg)</label><input type="number" id="inWeight" step="0.1" placeholder="70.5"></div>
+        <div class="form-group"><label>体脂率 (%)</label><input type="number" id="inBodyFat" step="0.1" placeholder="18.0"></div>
+        <div class="form-group"><label>肌肉量 (kg)</label><input type="number" id="inMuscleMass" step="0.1" placeholder="56.0"></div>
+      </div>
+      <div class="form-4col" style="margin-bottom:10px">
+        <div class="form-group"><label>胸围 cm</label><input type="number" id="inChest" placeholder="95"></div>
+        <div class="form-group"><label>腰围 cm</label><input type="number" id="inWaist" placeholder="80"></div>
+        <div class="form-group"><label>臀围 cm</label><input type="number" id="inHip" placeholder="95"></div>
+        <div class="form-group"><label>手臂围 cm</label><input type="number" id="inArm" placeholder="35"></div>
+      </div>
+      <div class="form-3col" style="margin-bottom:12px">
+        <div class="form-group"><label>大腿围 cm</label><input type="number" id="inThigh" placeholder="55"></div>
+        <div class="form-group"><label>小腿围 cm</label><input type="number" id="inCalf" placeholder="38"></div>
+        <div class="form-group"><label>测量日期</label><input type="date" id="inDate"></div>
+      </div>
+      <button class="btn-primary" onclick="saveMeasurement()" style="width:100%">保存测量数据</button>
+      <div id="saveMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--green)"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">BMI 分析</span></div>
+      <div id="bmiAnalysis" style="color:var(--muted);font-size:13px">请先录入体重数据。</div>
+      <hr class="divider">
+      <div class="card-header" style="margin-bottom:8px"><span class="card-title">腰臀比 WHR</span></div>
+      <div id="whrAnalysis" style="color:var(--muted);font-size:13px">录入腰围和臀围后自动计算</div>
+      <hr class="divider">
+      <div class="card-header" style="margin-bottom:8px"><span class="card-title">体型评估</span></div>
+      <div id="bodyTypeAnalysis" style="color:var(--muted);font-size:13px">综合数据分析体型特征</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">历史记录</span><button class="btn-secondary btn-sm" onclick="loadHistory()">刷新</button></div>
+    <div class="table-wrap">
+      <table class="history-table">
+        <thead><tr><th>日期</th><th>体重</th><th>体脂%</th><th>胸围</th><th>腰围</th><th>臀围</th><th>手臂围</th><th>大腿围</th><th>BMI</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">加载中...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<script>
+const today=new Date().toISOString().split('T')[0];
+document.getElementById('inDate').value=today;
+let measurements=[],userHeight=170;
+
+async function loadProfile(){try{const d=await fetch('/api/user').then(r=>r.json());if(d.heightCm)userHeight=parseFloat(d.heightCm);}catch(e){}}
+
+async function loadHistory(){
+  try{const r=await fetch('/api/measurements?userId=u1001&limit=20');measurements=await r.json();renderHistory(measurements);if(measurements.length>0)updateCurrentCards(measurements[0],measurements.length>1?measurements[1]:null);}
+  catch(e){renderDemoData();}
+}
+function renderDemoData(){
+  measurements=[{date:'2026-06-10',weightKg:72.3,bodyFatPct:18.5,chestCm:96,waistCm:82,hipCm:97,armCm:36,thighCm:56,calfCm:38},{date:'2026-06-01',weightKg:73.1,bodyFatPct:19.2,chestCm:95,waistCm:83,hipCm:96,armCm:35,thighCm:55,calfCm:37}];
+  renderHistory(measurements);updateCurrentCards(measurements[0],measurements[1]);
+}
+function calcBmi(w,h){return(w/((h/100)**2)).toFixed(1);}
+function updateCurrentCards(cur,prev){
+  const bmi=calcBmi(cur.weightKg,userHeight);
+  document.getElementById('curWeight').textContent=cur.weightKg;
+  document.getElementById('curBmi').textContent=bmi;
+  document.getElementById('curChest').textContent=cur.chestCm||'—';
+  document.getElementById('curWaist').textContent=cur.waistCm||'—';
+  document.getElementById('curHip').textContent=cur.hipCm||'—';
+  document.getElementById('curArm').textContent=cur.armCm||'—';
+  document.getElementById('curThigh').textContent=cur.thighCm||'—';
+  document.getElementById('curBodyFat').textContent=cur.bodyFatPct?cur.bodyFatPct+'%':'—';
+  if(prev){setChange('chgWeight',cur.weightKg-prev.weightKg,true);setChange('chgBmi',calcBmi(cur.weightKg,userHeight)-calcBmi(prev.weightKg,userHeight),true);setChange('chgChest',(cur.chestCm||0)-(prev.chestCm||0),false);setChange('chgWaist',(cur.waistCm||0)-(prev.waistCm||0),true);setChange('chgHip',(cur.hipCm||0)-(prev.hipCm||0),false);setChange('chgArm',(cur.armCm||0)-(prev.armCm||0),false);setChange('chgThigh',(cur.thighCm||0)-(prev.thighCm||0),false);setChange('chgBodyFat',(cur.bodyFatPct||0)-(prev.bodyFatPct||0),true);}
+  const bmiNum=parseFloat(bmi);
+  const bmiColor=bmiNum<18.5?'var(--blue)':bmiNum<24?'var(--green)':bmiNum<28?'var(--yellow)':'var(--red)';
+  const bmiLabel=bmiNum<18.5?'偏瘦':bmiNum<24?'正常':bmiNum<28?'超重':'肥胖';
+  document.getElementById('bmiAnalysis').innerHTML=`<div style="font-size:2rem;font-weight:800;color:${bmiColor}">${bmi}</div><div style="color:${bmiColor};font-weight:600;margin:4px 0">${bmiLabel}</div><div style="font-size:12px;color:var(--muted)">正常范围：18.5 – 23.9（中国标准）</div><div style="margin-top:10px;font-size:13px">理想体重：${Math.round(22*(userHeight/100)**2)} – ${Math.round(23.5*(userHeight/100)**2)} kg</div>`;
+  if(cur.waistCm&&cur.hipCm){const whr=(cur.waistCm/cur.hipCm).toFixed(2);document.getElementById('whrAnalysis').innerHTML=`<span style="font-size:1.5rem;font-weight:700;color:${whr<0.85?'var(--green)':'var(--yellow)'}">${whr}</span><span style="color:var(--muted);margin-left:8px">${whr<0.85?'正常':'偏高'}（女&lt;0.85，男&lt;0.9）</span>`;}
+  if(cur.weightKg&&cur.bodyFatPct){const fatKg=(cur.weightKg*cur.bodyFatPct/100).toFixed(1);const muscleKg=(cur.weightKg-fatKg).toFixed(1);document.getElementById('bodyTypeAnalysis').innerHTML=`<div style="font-size:13px">脂肪量：<strong>${fatKg} kg</strong>（${cur.bodyFatPct}%）</div><div style="font-size:13px">瘦体重：<strong>${muscleKg} kg</strong></div><div style="font-size:11px;color:var(--muted);margin-top:6px">参考：男性体脂10-20%优良，女性18-28%优良</div>`;}
+}
+function setChange(id,diff,lowerIsBetter){const el=document.getElementById(id);if(!diff||isNaN(diff)){el.textContent='—';el.className='change neutral';return;}const sign=diff>0?'+':'';el.textContent=sign+diff.toFixed(1);el.className='change '+(lowerIsBetter?(diff>0?'up':'down'):(diff<0?'up':'down'));}
+function renderHistory(data){
+  const tbody=document.getElementById('historyBody');
+  if(!data.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">暂无测量记录</td></tr>';return;}
+  tbody.innerHTML=data.map(m=>{const bmi=calcBmi(m.weightKg,userHeight);const bmiNum=parseFloat(bmi);const bc=bmiNum<18.5?'var(--blue)':bmiNum<24?'var(--green)':bmiNum<28?'var(--yellow)':'var(--red)';return`<tr><td>${m.date||m.measureDate||'—'}</td><td>${m.weightKg||'—'}</td><td>${m.bodyFatPct?m.bodyFatPct+'%':'—'}</td><td>${m.chestCm||'—'}</td><td>${m.waistCm||'—'}</td><td>${m.hipCm||'—'}</td><td>${m.armCm||'—'}</td><td>${m.thighCm||'—'}</td><td style="color:${bc}">${bmi}</td></tr>`;}).join('');
+}
+async function saveMeasurement(){
+  const body={userId:'u1001',measureDate:document.getElementById('inDate').value,weightKg:parseFloat(document.getElementById('inWeight').value)||null,bodyFatPct:parseFloat(document.getElementById('inBodyFat').value)||null,muscleMassKg:parseFloat(document.getElementById('inMuscleMass').value)||null,chestCm:parseFloat(document.getElementById('inChest').value)||null,waistCm:parseFloat(document.getElementById('inWaist').value)||null,hipCm:parseFloat(document.getElementById('inHip').value)||null,armCm:parseFloat(document.getElementById('inArm').value)||null,thighCm:parseFloat(document.getElementById('inThigh').value)||null,calfCm:parseFloat(document.getElementById('inCalf').value)||null};
+  try{await fetch('/api/measurements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const msg=document.getElementById('saveMsg');msg.textContent='✅ 测量数据已保存！';msg.style.display='block';setTimeout(()=>msg.style.display='none',3000);loadHistory();}
+  catch(e){const m=document.getElementById('saveMsg');m.textContent='保存失败: '+e.message;m.style.display='block';}
+}
+loadProfile().then(()=>loadHistory());
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>营养追踪 — SmartFitAgent</title>
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+.macro-row{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+.macro-stat{text-align:center;min-width:72px}
+.macro-stat .val{font-size:22px;font-weight:700}
+.macro-stat .lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.food-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.food-card{background:var(--surface);border-radius:8px;padding:10px;cursor:pointer;border:2px solid transparent;transition:all .2s;text-align:center}
+.food-card:hover{border-color:var(--accent)}
+.food-card .cal-val{font-size:16px;font-weight:700;color:var(--accent)}
+.food-card .fname{font-size:11px;color:var(--muted);margin-top:2px}
+.meal-section{margin-bottom:14px}
+.meal-section h4{color:var(--accent);font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+.log-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px}
+.log-item:last-child{border-bottom:none}
+.search-results{max-height:180px;overflow-y:auto;background:var(--surface);border-radius:8px;border:1px solid var(--border);display:none;margin-top:4px}
+.search-results .item{padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;border-bottom:1px solid var(--border);font-size:13px}
+.search-results .item:hover{background:var(--card-hover)}
+.filter-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+</style>
+</head>
+<body data-page="nutrition">
+<main class="main-content">
+  <div class="page-header">
+    <div><h1>🥗 营养追踪</h1><p class="subtitle">今日：<span id="todayDate">—</span></p></div>
+  </div>
+
+  <div class="grid cols2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header"><span class="card-title">今日摄入</span></div>
+      <div class="macro-row">
+        <div class="macro-stat"><div class="val" id="totalCal" style="color:#6366f1">—</div><div class="lbl">千卡</div>
+          <div class="progress-bar" style="width:90px;margin-top:4px"><div class="progress-fill fill-purple" id="calBar" style="width:0%"></div></div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px">目标 <span id="calTarget">2000</span></div>
+        </div>
+        <div class="macro-stat"><div class="val" id="totalProt" style="color:var(--green)">—</div><div class="lbl">蛋白质 g</div>
+          <div class="progress-bar" style="width:70px;margin-top:4px"><div class="progress-fill fill-green" id="protBar" style="width:0%"></div></div>
+        </div>
+        <div class="macro-stat"><div class="val" id="totalCarb" style="color:var(--yellow)">—</div><div class="lbl">碳水 g</div>
+          <div class="progress-bar" style="width:70px;margin-top:4px"><div class="progress-fill fill-yellow" id="carbBar" style="width:0%"></div></div>
+        </div>
+        <div class="macro-stat"><div class="val" id="totalFat" style="color:var(--red)">—</div><div class="lbl">脂肪 g</div>
+          <div class="progress-bar" style="width:70px;margin-top:4px"><div class="progress-fill fill-red" id="fatBar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">记录饮食</span></div>
+      <div style="position:relative;margin-bottom:10px">
+        <input type="text" id="foodSearch" placeholder="搜索食物名称..." oninput="searchFood()">
+        <div class="search-results" id="searchResults"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>餐次</label>
+          <select id="mealType"><option>早餐</option><option>上午加餐</option><option selected>午餐</option><option>下午加餐</option><option>晚餐</option><option>夜宵</option></select>
+        </div>
+        <div class="form-group"><label>食物名称</label><input type="text" id="foodName" placeholder="鸡胸肉"></div>
+      </div>
+      <div class="form-row cols2">
+        <div class="form-group"><label>重量 (g)</label><input type="number" id="quantity" value="100"></div>
+        <div class="form-group"><label>热量 (kcal)</label><input type="number" id="manualCal" placeholder="自动查询"></div>
+      </div>
+      <button class="btn-primary" onclick="logFood()" style="width:100%">记录</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-header"><span class="card-title">今日饮食记录</span></div>
+    <div id="mealsLog"><div class="empty-state"><div class="icon">🍽️</div><p>暂无记录，开始记录今天的饮食吧！</p></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">常见食物热量（每100g）</span></div>
+    <div class="filter-btns">
+      <button class="btn-secondary btn-sm" onclick="filterFoods('all')">全部</button>
+      <button class="btn-secondary btn-sm" onclick="filterFoods('protein')">蛋白质</button>
+      <button class="btn-secondary btn-sm" onclick="filterFoods('carb')">主食</button>
+      <button class="btn-secondary btn-sm" onclick="filterFoods('veg')">蔬菜</button>
+      <button class="btn-secondary btn-sm" onclick="filterFoods('fruit')">水果</button>
+    </div>
+    <div class="food-grid" id="foodGrid"><div style="color:var(--muted)">加载食物数据库...</div></div>
+  </div>
+</main>
+<script>
+const today=new Date().toISOString().split('T')[0];
+document.getElementById('todayDate').textContent=today;
+let foodDb=[];
+
+async function loadFoodDatabase(){
+  try{const r=await fetch('/api/nutrition/calories');foodDb=await r.json();renderFoodGrid(foodDb);}
+  catch(e){console.error(e);}
+}
+function renderFoodGrid(foods){
+  document.getElementById('foodGrid').innerHTML=foods.slice(0,60).map(f=>`
+    <div class="food-card" onclick="selectFood('${f.name}',${f.calories})">
+      <div class="cal-val">${f.calories}</div><div class="lbl">kcal</div><div class="fname">${f.name}</div>
+    </div>`).join('');
+}
+function filterFoods(type){
+  const filters={protein:['鸡','肉','鱼','蛋','豆'],carb:['饭','面','包','米','薯'],veg:['菜','花','瓜','葱','蒜'],fruit:['果','莓','桃','梨','瓜']};
+  if(type==='all'){renderFoodGrid(foodDb);return;}
+  const kws=filters[type]||[];renderFoodGrid(foodDb.filter(f=>kws.some(k=>f.name.includes(k))));
+}
+function selectFood(name,cal){
+  document.getElementById('foodName').value=name;
+  document.getElementById('manualCal').value=Math.round(cal*(parseInt(document.getElementById('quantity').value)||100)/100);
+}
+async function searchFood(){
+  const q=document.getElementById('foodSearch').value.trim();
+  if(!q){document.getElementById('searchResults').style.display='none';return;}
+  const results=foodDb.filter(f=>f.name.includes(q)).slice(0,8);
+  const div=document.getElementById('searchResults');
+  if(!results.length){div.style.display='none';return;}
+  div.innerHTML=results.map(f=>`<div class="item" onclick="selectFood('${f.name}',${f.calories});this.parentElement.style.display='none'"><span>${f.name}</span><span style="color:var(--accent)">${f.calories} kcal/100g</span></div>`).join('');
+  div.style.display='block';
+}
+async function logFood(){
+  const body={mealType:document.getElementById('mealType').value,foodName:document.getElementById('foodName').value||'未知食物',quantityGrams:parseFloat(document.getElementById('quantity').value)||100,calories:parseInt(document.getElementById('manualCal').value)||0,date:today};
+  try{await fetch('/api/nutrition/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    document.getElementById('foodName').value='';document.getElementById('manualCal').value='';loadDailySummary();
+  }catch(e){alert('记录失败: '+e.message);}
+}
+async function loadDailySummary(){
+  try{const d=await fetch(`/api/nutrition/daily?date=${today}`).then(r=>r.json());
+    document.getElementById('totalCal').textContent=d.totalCalories||0;
+    document.getElementById('totalProt').textContent=Math.round(d.totalProteinG||0);
+    document.getElementById('totalCarb').textContent=Math.round(d.totalCarbsG||0);
+    document.getElementById('totalFat').textContent=Math.round(d.totalFatG||0);
+    const calTarget=2000;
+    document.getElementById('calBar').style.width=Math.min(100,((d.totalCalories||0)/calTarget)*100)+'%';
+    document.getElementById('protBar').style.width=Math.min(100,((d.totalProteinG||0)/150)*100)+'%';
+    document.getElementById('carbBar').style.width=Math.min(100,((d.totalCarbsG||0)/250)*100)+'%';
+    document.getElementById('fatBar').style.width=Math.min(100,((d.totalFatG||0)/65)*100)+'%';
+    const logs=d.logs||[];
+    const mealsLog=document.getElementById('mealsLog');
+    if(!logs.length){mealsLog.innerHTML='<div class="empty-state"><div class="icon">🍽️</div><p>今日暂无饮食记录</p></div>';return;}
+    const byMeal={};logs.forEach(l=>{const m=l.meal_type||'其他';if(!byMeal[m])byMeal[m]=[];byMeal[m].push(l);});
+    mealsLog.innerHTML=Object.entries(byMeal).map(([meal,items])=>`
+      <div class="meal-section"><h4>🍽️ ${meal}</h4>
+        ${items.map(i=>`<div class="log-item"><span>${i.food_name}</span><span style="color:var(--muted)">${i.quantity_grams}g</span><span class="badge badge-orange">${i.calories} kcal</span></div>`).join('')}
+      </div>`).join('');
+  }catch(e){console.error(e);}
+}
+loadFoodDatabase();loadDailySummary();
+</script>
+<script src="/assets/layout.js"></script>
+</body>
+</html>
